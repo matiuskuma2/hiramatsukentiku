@@ -65,6 +65,8 @@
 | **高** | `05_MASTER_DATA_PLAN_v3.md` | v3 | シードデータ構造とバリデーション仕様 |
 | **高** | `15_MANAGEMENT_ITEMS.md` | v1 | 管理項目一覧・品質チェックポイント |
 | **中** | `10_IMPLEMENTATION_READINESS_CHECKLIST.md` | **v2** | Go/No-Go 最終チェック |
+| **中** | `16_UX_RISK_PREVENTION_DESIGN.md` | **v1** | **見積ミス防止UX要件。画面実装の上位方針** |
+| **中** | `17_AI_UTILIZATION_PLAN.md` | **v1** | **OpenAI活用計画。AI機能のPhase 1/2配置** |
 | **低** | その他（00, 04, 07, 08, 09） | - | 背景情報・参考 |
 
 ---
@@ -811,4 +813,4 @@ async function updateCostItem(
 *最終更新: 2026-03-07*
 *対象: AI駆動開発チーム（Cursor / Claude Code / Copilot 等）*
 *改訂番号: v3（正式改訂 — 禁止事項15項目、絶対ルール10項目、数値整合性、Step 0境界明確化）*
-*前提ドキュメント: 01_DB_v4, 03_SCREEN_v3, 06_PLAN_v3, 11_ENUM, 12_MIGRATION, 14_DEP_MAP_v2, 15_MANAGEMENT_ITEMS*
+*前提ドキュメント: 01_DB_v4, 03_SCREEN_v3, 06_PLAN_v3, 11_ENUM, 12_MIGRATION, 14_DEP_MAP_v2, 15_MANAGEMENT_ITEMS, 16_UX_RISK_PREVENTION, 17_AI_UTILIZATION_PLAN*

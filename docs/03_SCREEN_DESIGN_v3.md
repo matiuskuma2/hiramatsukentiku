@@ -1368,5 +1368,34 @@ PUT /api/projects/1
 
 ---
 
+---
+
+## UX 拡張要件（16_UX_RISK_PREVENTION_DESIGN.md 参照）
+
+> 以下の UX 拡張は Phase 1 実装時に本画面設計に統合する。詳細は 16_UX_RISK_PREVENTION_DESIGN.md を参照。
+
+| UX 要件 | 反映先画面 | 反映内容 |
+|---------|-----------|---------|
+| UX-01 見積リスクセンター | COST_OVERVIEW | 上部にリスクサマリーパネル（未設定条件・要確認工種・標準外候補・商談差・diff未承認・AI警告） |
+| UX-02 ステップ式入力 | PROJECT_NEW / PROJECT_DETAIL | 6ステップ構造（建物条件→面積→地域→設備→特殊→生成前チェック） |
+| UX-03 差分優先表示 | DIFF_REVIEW | 金額インパクト順ソート + サマリーカード + 確認済み破壊警告 |
+| UX-04 手修正理由構造化 | COST_CATEGORY | 理由コードドロップダウン（8種）+ 自由記述 |
+| UX-05 手修正集計ダッシュボード | DASHBOARD | 管理者向け集計セクション（Phase 1: 簡易版） |
+| UX-06 入力完了率 | DASHBOARD + PROJECT_DETAIL | プログレスバー表示 |
+| UX-07 生成前チェックリスト | COST_OVERVIEW | 計算実行ボタン押下時の確認モーダル |
+
+## AI 統合要件（17_AI_UTILIZATION_PLAN.md 参照）
+
+| AI 機能 | 統合先画面 | 表示方法 | Phase |
+|---------|-----------|---------|-------|
+| AI-A 条件漏れチェック | COST_OVERVIEW / AI_CHECK | 「AIチェック」ボタン + 見積リスクセンター | Phase 1 |
+| AI-B PDF読取 | COST_CATEGORY | 「業者見積を読込」ボタン + 確認モーダル | Phase 1 |
+| AI-C 理由分類 | COST_CATEGORY | 手修正時のドロップダウン候補 | Phase 1 |
+| AI-D 類似案件比較 | COST_OVERVIEW | 「類似案件と比較」パネル | Phase 2 |
+| AI-E 実績差異要約 | PROJECT_DETAIL | 「実績レポート」タブ | Phase 2 |
+| AI-F 差異説明 | COST_SUMMARY | 「差異説明を生成」ボタン | Phase 2 |
+
+---
+
 *最終更新: 2026-03-07*
-*改訂番号: v3（正式改訂 — 18画面詳細仕様、API全面改訂、14_DEP_MAP/06_PLAN v3 完全整合）*
+*改訂番号: v3（正式改訂 — 18画面詳細仕様、API全面改訂、14_DEP_MAP/06_PLAN v3 完全整合。UX拡張・AI統合の参照セクション追加）*
