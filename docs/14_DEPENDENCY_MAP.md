@@ -180,7 +180,7 @@ cost_snapshot_jobs ──> project_cost_regeneration_diffs
 
 | コンポーネント | 前提 | 入力 | 出力 | 更新対象 | TX | Sync/Async | 権限 |
 |---------------|------|------|------|---------|-----|-----------|------|
-| migrations/0001_initial_schema.sql | D1 DB作成済 | SQL DDL (12_MIGRATION_SQL_FINAL.md) | 空23テーブル + 47idx + system_settings 9件 | 全テーブル構造 | 1TX | SYNC | CLI |
+| migrations/0001_initial_schema.sql | D1 DB作成済 | SQL DDL (12_MIGRATION_SQL_FINAL.md) | 25テーブル + 47idx + system_settings 9件 | 全テーブル構造 | 1TX | SYNC | CLI |
 | import_seed_to_d1.ts | migration適用済, B-01/02/03修正済 | 4 seed JSON | D1にマスタデータ投入 | cost_categories(10), items(49), versions(49), rules(54) | 4TX(テーブル別) | SYNC | CLI |
 | app_users admin INSERT | migration適用済, CFメール確定 | admin email/name | app_users 1レコード | app_users | 1TX | SYNC | CLI |
 | seed JSON 修正 (B-01) | なし | seed_rules_priority_a.json | lineup値アンダースコア統一 | JSONファイル | - | - | 開発者 |

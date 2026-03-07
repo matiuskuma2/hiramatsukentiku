@@ -344,7 +344,7 @@ Step 11(1d)                                     █                         → 
   7. seeds/admin_user.sql 作成（再投入用）
 
 出力:
-  - D1 に 23テーブル + 47インデックス
+  - D1 に 25テーブル + 47インデックス
   - system_settings 9件（migration SQL内で投入済み）
   - cost_categories 10件
   - cost_master_items 49件
@@ -353,7 +353,7 @@ Step 11(1d)                                     █                         → 
   - app_users 1件（admin）
 
 完了条件:
-  □ SELECT COUNT(*) FROM sqlite_master WHERE type='table' → 23
+  □ SELECT COUNT(*) FROM sqlite_master WHERE type='table' → 25
   □ SELECT COUNT(*) FROM system_settings → 9
   □ SELECT COUNT(*) FROM cost_categories → 10
   □ SELECT COUNT(*) FROM cost_master_items → 49
@@ -444,7 +444,7 @@ Step 11(1d)                                     █                         → 
 
 入力:
   - 01_DB_SCHEMA_DESIGN_v4.md（テーブル2〜9）
-  - 03_SCREEN_DESIGN_v2.md（MASTER_* 画面）
+  - 03_SCREEN_DESIGN_v3.md（MASTER_* 画面）
   - 05_MASTER_DATA_PLAN_v3.md（シード構造・バリデーション仕様）
 
 タスク:
@@ -499,7 +499,7 @@ Step 11(1d)                                     █                         → 
 
 入力:
   - 01_DB_SCHEMA_DESIGN_v4.md（projects テーブル）
-  - 03_SCREEN_DESIGN_v2.md（DASHBOARD, PROJECT_NEW, PROJECT_DETAIL）
+  - 03_SCREEN_DESIGN_v3.md（DASHBOARD, PROJECT_NEW, PROJECT_DETAIL）
 
 タスク:
   1. 案件 CRUD API (5エンドポイント):
@@ -795,7 +795,7 @@ Step 11(1d)                                     █                         → 
   - ※ Step 6と並行可能（API未完了でもモック使用）
 
 入力:
-  - 03_SCREEN_DESIGN_v2.md（COST_OVERVIEW, COST_CATEGORY）
+  - 03_SCREEN_DESIGN_v3.md（COST_OVERVIEW, COST_CATEGORY）
   - 14_DEPENDENCY_MAP.md セクション3-3（画面レイヤー）
 
 タスク:
@@ -857,7 +857,7 @@ Step 11(1d)                                     █                         → 
   - Step 7 完了（再生成・diff動作）
 
 入力:
-  - 03_SCREEN_DESIGN_v2.md（COST_SUMMARY）
+  - 03_SCREEN_DESIGN_v3.md（COST_SUMMARY）
   - 01_DB_SCHEMA_DESIGN_v4.md（project_sales_estimates, project_cost_regeneration_diffs）
 
 タスク:

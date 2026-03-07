@@ -71,7 +71,7 @@
 | **入力** | 12_MIGRATION_SQL_FINAL.md |
 | **出力** | migrations/0001_initial_schema.sql |
 | **完了条件** | ファイルが配置され、`wrangler d1 migrations apply --local` が成功 |
-| **検証方法** | `SELECT COUNT(*) FROM sqlite_master WHERE type='table'` → 23 |
+| **検証方法** | `SELECT COUNT(*) FROM sqlite_master WHERE type='table'` → 25 |
 | **担当ロール** | 開発者 |
 | **依存先** | Step 0（プロジェクト初期化） |
 | **影響先** | Step 1（全後続ステップの基盤） |
@@ -170,8 +170,8 @@
 |------|------|
 | **状態** | 🔴 ブロック中（B-01, B-02, B-03, B-04 待ち） |
 | **入力** | migration SQL, 4 seed JSON (修正済み), admin メールアドレス |
-| **出力** | D1に23テーブル + マスタデータ + admin ユーザー |
-| **完了条件** | □ テーブル数=23 □ categories=10 □ items=49 □ versions=49 □ rules=54 □ admin=1 □ settings=9 □ CHECK制約テスト通過 □ 参照整合性OK |
+| **出力** | D1に25テーブル + マスタデータ + admin ユーザー |
+| **完了条件** | □ テーブル数=25 □ categories=10 □ items=49 □ versions=49 □ rules=54 □ admin=1 □ settings=9 □ CHECK制約テスト通過 □ 参照整合性OK |
 | **検証方法** | 検証SQL9本実行 + CHECK違反テスト + import --validate-only |
 | **担当ロール** | 開発者 |
 | **依存先** | STEP-00, B-01, B-02, B-03, B-04 |
@@ -195,7 +195,7 @@
 | 項目 | 内容 |
 |------|------|
 | **状態** | 🔴 ブロック中（STEP-02 待ち） |
-| **入力** | 01_DB_v4, 03_SCREEN_v2, 05_MASTER_v3 |
+| **入力** | 01_DB_v4, 03_SCREEN_v3, 05_MASTER_v3 |
 | **出力** | マスタAPI 16本 + 画面4画面 + 変更履歴自動記録 |
 | **完了条件** | □ GET categories=10件 □ バージョン追加+ログ記録 □ 権限チェック(admin以外403) □ 画面操作可能 |
 | **検証方法** | API レスポンス検証 + master_change_logs INSERT確認 + 画面操作テスト |
@@ -208,7 +208,7 @@
 | 項目 | 内容 |
 |------|------|
 | **状態** | 🔴 ブロック中（STEP-03 待ち, 部分並行可） |
-| **入力** | 01_DB_v4 projects, 03_SCREEN_v2 |
+| **入力** | 01_DB_v4 projects, 03_SCREEN_v3 |
 | **出力** | 案件API 5本 + ダッシュボード + 案件作成/詳細画面 + 楽観ロック |
 | **完了条件** | □ YYYY-NNN自動採番 □ フィルタ/検索 □ 楽観ロック(409) □ audit_logs記録 □ 粗利率デフォルト |
 | **検証方法** | 楽観ロック衝突テスト + 採番連番テスト + ダッシュボード表示テスト |
@@ -260,7 +260,7 @@
 | 項目 | 内容 |
 |------|------|
 | **状態** | 🔴 ブロック中（STEP-06 + STEP-04 待ち, 部分並行可） |
-| **入力** | 03_SCREEN_v2 (COST_OVERVIEW, COST_CATEGORY) |
+| **入力** | 03_SCREEN_v3 (COST_OVERVIEW, COST_CATEGORY) |
 | **出力** | COST_OVERVIEW + COST_CATEGORY(インライン編集) + ログイン導線 + 共通ヘッダー |
 | **完了条件** | □ 37工種表示 □ 計算実行→ポーリング→更新 □ 手修正保存 □ override_reason必須 □ 楽観ロック409 □ ログイン導線 |
 | **検証方法** | 案件作成→計算→結果表示フロー + 手修正テスト + 楽観ロックテスト |
@@ -273,7 +273,7 @@
 | 項目 | 内容 |
 |------|------|
 | **状態** | 🔴 ブロック中（STEP-08 + STEP-07 待ち） |
-| **入力** | 03_SCREEN_v2 (COST_SUMMARY), 01_DB_v4 (sales_estimates, diffs) |
+| **入力** | 03_SCREEN_v3 (COST_SUMMARY), 01_DB_v4 (sales_estimates, diffs) |
 | **出力** | COST_SUMMARY + 売価見積保存 + DIFF_REVIEW + USER_MGMT |
 | **完了条件** | □ 3グループ集計正確 □ 売価保存 □ diff一覧表示(7種色分け) □ diff承認 □ 一括承認 □ ユーザーCRUD □ admin以外403 |
 | **検証方法** | サマリー金額手計算照合 + diff承認テスト + ユーザー管理テスト |
@@ -324,7 +324,7 @@
 | 項目 | 内容 |
 |------|------|
 | **ルール** | 実装中にドキュメントとの差異が生じた場合、即座にドキュメントも更新 |
-| **対象** | 01_DB_v4, 03_SCREEN_v2/v3, 06_PLAN_v3, 11_ENUM, 14_DEP_MAP |
+| **対象** | 01_DB_v4, 03_SCREEN_v3/v3, 06_PLAN_v3, 11_ENUM, 14_DEP_MAP |
 | **検証** | Step 11 でドキュメントバージョン一覧の最終確認 |
 
 ### CROSS-03: テスト網羅性
@@ -358,12 +358,12 @@
 | src/engine/calculator.ts | 02_COST_CALC_v2 | STEP-05 | 2パステスト+突合 |
 | src/services/snapshotJobProcessor.ts | 14_DEP_MAP セクション4 | STEP-06 | フロー通貫テスト |
 | scripts/import_seed_to_d1.ts | 05_MASTER_DATA_v3 | STEP-01 | --validate-only |
-| マスタ管理API (16本) | 01_DB_v4, 03_SCREEN_v2 | STEP-03 | APIレスポンス検証 |
-| 案件管理API (5本) | 01_DB_v4, 03_SCREEN_v2 | STEP-04 | 楽観ロック+採番テスト |
+| マスタ管理API (16本) | 01_DB_v4, 03_SCREEN_v3 | STEP-03 | APIレスポンス検証 |
+| 案件管理API (5本) | 01_DB_v4, 03_SCREEN_v3 | STEP-04 | 楽観ロック+採番テスト |
 | 計算API+Queue Consumer | 14_DEP_MAP セクション4-1 | STEP-06 | 排他+ポーリングテスト |
 | 再生成API+diff | 14_DEP_MAP セクション4-2 | STEP-07 | 3種job_type×diffテスト |
 | AI条件チェックAPI | 04_OPENAI_API | STEP-10 | AIレスポンス妥当性 |
-| 画面18画面 | 03_SCREEN_v2/v3 | STEP-08,09,10 | 全画面操作テスト |
+| 画面18画面 | 03_SCREEN_v3/v3 | STEP-08,09,10 | 全画面操作テスト |
 | テスト結果レポート | スプレッドシート実データ | STEP-11 | 4パターン突合一致 |
 
 ---

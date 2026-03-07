@@ -716,7 +716,7 @@ INSERT INTO system_settings (setting_key, setting_type, setting_value, value_typ
 ## 投入後検証クエリ
 
 ```sql
--- テーブル数の確認（23テーブル）
+-- テーブル数の確認（25テーブル）
 SELECT COUNT(*) AS table_count
 FROM sqlite_master
 WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%';

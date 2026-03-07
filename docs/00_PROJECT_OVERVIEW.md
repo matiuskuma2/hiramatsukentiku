@@ -205,21 +205,35 @@
 | # | ファイル | 内容 | 正式版 |
 |---|---------|------|--------|
 | 00 | PROJECT_OVERVIEW.md | 本ドキュメント（プロジェクト概要） | 最新 |
-| 01 | **DB_SCHEMA_DESIGN_v4.md** | D1テーブル設計（**v4改訂版**） | **v4** |
-| 02 | **COST_CALCULATION_DEFINITIONS_v2.md** | 工種別計算方式定義（**v2改訂版**） | **v2** |
-| 03 | **SCREEN_DESIGN_v2.md** | 画面設計・画面遷移図・API設計（**v2改訂版**） | **v2** |
+| 01 | **DB_SCHEMA_DESIGN_v4.md** | D1テーブル設計（**25テーブル、v4改訂版**） | **v4** |
+| 02 | **COST_CALCULATION_DEFINITIONS_v2.md** | 工種別計算方式定義（**37工種・12方式、v2改訂版**） | **v2** |
+| 03 | **SCREEN_DESIGN_v3.md** | **画面設計・画面遷移図・API設計（18画面詳細仕様、v3正式改訂）** | **v3** |
 | 04 | OPENAI_API_DESIGN.md | OpenAI API活用設計 | v1 |
 | 05 | **MASTER_DATA_PLAN_v3.md** | マスタデータ初期投入計画（**v3改訂版**） | **v3** |
-| 06 | PHASE1_IMPLEMENTATION_PLAN_v2.md | Phase 1実装計画（**v2改訂版**） | v2 |
+| 06 | **PHASE1_IMPLEMENTATION_PLAN_v3.md** | **Phase 1実装計画（shadow snapshot/Queue Job/RBAC固定、v3全面改訂）** | **v3** |
 | 07 | CROSS_REVIEW_AND_RESOLUTIONS.md | 横断クロスレビュー＆解決方針書 | v1 |
 | 08 | OPERATIONAL_RUNBOOK.md | 運用ランブック | v1 |
 | 09 | CROSS_REVIEW_PHASE2.md | 統合整合性検証（Phase 2レビュー） | v1 |
-| 10 | IMPLEMENTATION_READINESS_CHECKLIST.md | 実装着手前チェックリスト | v1→**v2予定** |
-| 11 | **ENUM_STATUS_SPEC.md** | **Enum/ステータス/CHECK制約 統合仕様書（新規）** | **v1** |
-| 12 | **MIGRATION_SQL_FINAL.md** | **最終マイグレーションSQL（新規）** | **v1** |
-| 13 | **AI_DEV_TEAM_INSTRUCTIONS.md** | **AI駆動開発チーム向け実装指示書（新規）** | **v1** |
+| 10 | **IMPLEMENTATION_READINESS_CHECKLIST.md** | **実装着手前Go/No-Goチェックリスト（v2正式改訂）** | **v2** |
+| 11 | **ENUM_STATUS_SPEC.md** | **Enum/ステータス/CHECK制約 統合仕様書（25テーブル対象）** | **v1** |
+| 12 | **MIGRATION_SQL_FINAL.md** | **最終マイグレーションSQL（25テーブル CREATE TABLE）** | **v1** |
+| 13 | **AI_DEV_TEAM_INSTRUCTIONS.md** | **AI駆動開発チーム向け実装指示書（禁止事項10項目、v2正式改訂）** | **v2** |
+| 14 | **DEPENDENCY_MAP.md** | **全体依存関係マップ（DAG構造・包括版、v2）** | **v2** |
+| 15 | **MANAGEMENT_ITEMS.md** | **管理項目一覧（ブロッカー・Step・品質チェック）** | **v1** |
 
 > **参照優先度**: 最新版ドキュメントを正とする。旧版（v1, v2, v3）は参考資料として残す。
+
+### 正式数値一覧（全ドキュメント共通）
+
+| 項目 | 値 | 根拠 |
+|------|-----|------|
+| テーブル数 | **25** | 01_DB_v4, 12_MIGRATION |
+| Phase 1画面数 | **18** | 03_SCREEN_v3 |
+| ロール数 | **4** | 11_ENUM（admin, manager, estimator, viewer） |
+| 工種数 | **37** | 02_COST_v2 |
+| 計算方式数 | **12** | 02_COST_v2, 11_ENUM |
+| ブロッカーID数 | **8** (B-01〜B-08、うち3件解消済み) | 10_CHECKLIST_v2, 06_PLAN_v3 |
+| APIエンドポイント数 | **50+** | 03_SCREEN_v3, 14_DEP_MAP_v2 |
 
 ### v4 で追加された設計要素
 
