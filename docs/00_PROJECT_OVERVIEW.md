@@ -202,22 +202,25 @@
 
 ## 9. ドキュメント構成
 
-| # | ファイル | 内容 |
-|---|---------|------|
-| 00 | PROJECT_OVERVIEW.md | 本ドキュメント（プロジェクト概要） |
-| 01 | DB_SCHEMA_DESIGN_v2.md | D1テーブル設計（**v2改訂版**） |
-| 02 | COST_CALCULATION_DEFINITIONS.md | 工種別計算方式定義 |
-| 03 | SCREEN_DESIGN.md | 画面設計・画面遷移図・API設計 |
-| 04 | OPENAI_API_DESIGN.md | OpenAI API活用設計 |
-| 05 | MASTER_DATA_PLAN_v2.md | マスタデータ初期投入計画（**v2改訂版**） |
-| 06 | PHASE1_IMPLEMENTATION_PLAN_v2.md | Phase 1実装計画（**v2改訂版**） |
-| 07 | CROSS_REVIEW_AND_RESOLUTIONS.md | 横断クロスレビュー＆解決方針書（**新規**） |
-| 08 | OPERATIONAL_RUNBOOK.md | 運用ランブック（**新規**） |
+| # | ファイル | 内容 | 正式版 |
+|---|---------|------|--------|
+| 00 | PROJECT_OVERVIEW.md | 本ドキュメント（プロジェクト概要） | 最新 |
+| 01 | **DB_SCHEMA_DESIGN_v3.md** | D1テーブル設計（**v3改訂版**） | **v3** |
+| 02 | **COST_CALCULATION_DEFINITIONS_v2.md** | 工種別計算方式定義（**v2改訂版**） | **v2** |
+| 03 | **SCREEN_DESIGN_v2.md** | 画面設計・画面遷移図・API設計（**v2改訂版**） | **v2** |
+| 04 | OPENAI_API_DESIGN.md | OpenAI API活用設計 | v1 |
+| 05 | **MASTER_DATA_PLAN_v3.md** | マスタデータ初期投入計画（**v3改訂版**） | **v3** |
+| 06 | PHASE1_IMPLEMENTATION_PLAN_v2.md | Phase 1実装計画（**v2改訂版**） | v2 |
+| 07 | CROSS_REVIEW_AND_RESOLUTIONS.md | 横断クロスレビュー＆解決方針書 | v1 |
+| 08 | OPERATIONAL_RUNBOOK.md | 運用ランブック | v1 |
+| 09 | CROSS_REVIEW_PHASE2.md | 統合整合性検証（Phase 2レビュー） | v1 |
+| 10 | **IMPLEMENTATION_READINESS_CHECKLIST.md** | **実装着手前チェックリスト（新規）** | **v1** |
 
-> **参照優先度**: v2ドキュメントが存在する場合、v2を正とする。旧版は参考資料として残す。
+> **参照優先度**: 最新版ドキュメントを正とする。旧版（v1, v2）は参考資料として残す。
+> 正式版の確認は 10_IMPLEMENTATION_READINESS_CHECKLIST.md セクション7 を参照。
 
 ---
 
 *最終更新: 2026-03-07*
 *作成者: システム設計フェーズ*
-*改訂: v2 横断クロスレビュー反映*
+*改訂: v3 統合整合性検証反映*
