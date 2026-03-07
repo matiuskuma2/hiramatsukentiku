@@ -205,7 +205,7 @@
 | # | ファイル | 内容 | 正式版 |
 |---|---------|------|--------|
 | 00 | PROJECT_OVERVIEW.md | 本ドキュメント（プロジェクト概要） | 最新 |
-| 01 | **DB_SCHEMA_DESIGN_v3.md** | D1テーブル設計（**v3改訂版**） | **v3** |
+| 01 | **DB_SCHEMA_DESIGN_v4.md** | D1テーブル設計（**v4改訂版**） | **v4** |
 | 02 | **COST_CALCULATION_DEFINITIONS_v2.md** | 工種別計算方式定義（**v2改訂版**） | **v2** |
 | 03 | **SCREEN_DESIGN_v2.md** | 画面設計・画面遷移図・API設計（**v2改訂版**） | **v2** |
 | 04 | OPENAI_API_DESIGN.md | OpenAI API活用設計 | v1 |
@@ -214,13 +214,26 @@
 | 07 | CROSS_REVIEW_AND_RESOLUTIONS.md | 横断クロスレビュー＆解決方針書 | v1 |
 | 08 | OPERATIONAL_RUNBOOK.md | 運用ランブック | v1 |
 | 09 | CROSS_REVIEW_PHASE2.md | 統合整合性検証（Phase 2レビュー） | v1 |
-| 10 | **IMPLEMENTATION_READINESS_CHECKLIST.md** | **実装着手前チェックリスト（新規）** | **v1** |
+| 10 | IMPLEMENTATION_READINESS_CHECKLIST.md | 実装着手前チェックリスト | v1→**v2予定** |
+| 11 | **ENUM_STATUS_SPEC.md** | **Enum/ステータス/CHECK制約 統合仕様書（新規）** | **v1** |
+| 12 | **MIGRATION_SQL_FINAL.md** | **最終マイグレーションSQL（新規）** | **v1** |
+| 13 | **AI_DEV_TEAM_INSTRUCTIONS.md** | **AI駆動開発チーム向け実装指示書（新規）** | **v1** |
 
-> **参照優先度**: 最新版ドキュメントを正とする。旧版（v1, v2）は参考資料として残す。
-> 正式版の確認は 10_IMPLEMENTATION_READINESS_CHECKLIST.md セクション7 を参照。
+> **参照優先度**: 最新版ドキュメントを正とする。旧版（v1, v2, v3）は参考資料として残す。
+
+### v4 で追加された設計要素
+
+- **新規テーブル 7個**: `cost_snapshot_jobs`, `project_cost_snapshots`, `project_cost_regeneration_diffs`, `project_sales_estimates`, `project_input_sources`, `external_references`, `system_settings`
+- **テーブル置換**: `users` → `app_users`（Cloudflare Access 連携対応）
+- **カラム追加**: `projects.current_snapshot_id`, `projects.revision_no`
+- **CHECK制約**: 全 enum カラムに DB レベルの CHECK 制約を追加
+- **Enum仕様統合**: `diff_type`(7値), `job_type`(4値) を正式定義
+- **認証設計**: Cloudflare Access + `app_users` によるロールベース認証
+- **売価乖離警告**: スナップショットジョブ完了時に自動評価
+- **段階的デプロイ**: Step 0 失敗時のカテゴリ除外順位を明文化
 
 ---
 
 *最終更新: 2026-03-07*
 *作成者: システム設計フェーズ*
-*改訂: v3 統合整合性検証反映*
+*改訂: v4 スナップショット・認証・CHECK制約拡張反映*

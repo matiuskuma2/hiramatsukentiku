@@ -178,7 +178,7 @@ seed_item_versions.fixed_amount  → cost_master_item_versions.fixed_amount
 | ドキュメント | 正式版 | 旧版（参考） |
 |------------|--------|------------|
 | プロジェクト概要 | 00_PROJECT_OVERVIEW.md | - |
-| DB設計 | **01_DB_SCHEMA_DESIGN_v3.md** | 01_v2, 01_v1 |
+| DB設計 | **01_DB_SCHEMA_DESIGN_v4.md** | 01_v3, 01_v2, 01_v1 |
 | 計算方式定義 | **02_COST_CALCULATION_DEFINITIONS_v2.md** | 02_v1 |
 | 画面設計 | **03_SCREEN_DESIGN_v2.md** | 03_v1 |
 | OpenAI設計 | 04_OPENAI_API_DESIGN.md | - |
@@ -188,8 +188,62 @@ seed_item_versions.fixed_amount  → cost_master_item_versions.fixed_amount
 | 運用ランブック | 08_OPERATIONAL_RUNBOOK.md | - |
 | 統合検証 | 09_CROSS_REVIEW_PHASE2.md | - |
 | 実装チェックリスト | **10_IMPLEMENTATION_READINESS_CHECKLIST.md** | - |
+| Enum/ステータス仕様 | **11_ENUM_STATUS_SPEC.md** | - |
+| マイグレーションSQL | **12_MIGRATION_SQL_FINAL.md** | - |
+| AI開発チーム指示書 | **13_AI_DEV_TEAM_INSTRUCTIONS.md** | - |
+
+---
+
+## 8. v4 追加事項（ブロッカー拡張）
+
+### B-06: マイグレーション SQL を 25テーブル対応に更新 [v4]
+
+| 項目 | 内容 |
+|------|------|
+| 重要度 | **Critical** — v4 新規テーブルがないと認証・スナップショットが動かない |
+| 対象 | `migrations/0001_initial_schema.sql` |
+| 内容 | 12_MIGRATION_SQL_FINAL.md の SQL をそのまま使用 |
+| 状態 | **計画完了**（12_MIGRATION_SQL_FINAL.md に完全記載済み） |
+
+### B-07: app_users 初期データ投入 [v4]
+
+| 項目 | 内容 |
+|------|------|
+| 重要度 | **High** — 認証機能が動くためにadminユーザーが必要 |
+| 内容 | Cloudflare Access に登録したメールアドレスで `app_users` にレコード作成 |
+| 状態 | **実装時に対応** |
+
+### B-08: system_settings 初期データ確認 [v4]
+
+| 項目 | 内容 |
+|------|------|
+| 重要度 | **Medium** — 警告閾値が未設定だと売価乖離チェックが動かない |
+| 内容 | 12_MIGRATION_SQL_FINAL.md に初期9件の INSERT 文記載済み |
+| 状態 | **計画完了** |
+
+---
+
+## 9. 実装開始時の前提条件チェック（v4更新版）
+
+```
+□ B-01 完了: seed_rules の lineup値がアンダースコア形式に統一されている
+□ B-02 完了: item_panel_shipping の金額フィールドが修正されている
+□ B-03 完了: item_foundation_small_truck のcalculation_typeが per_piece に修正されている
+□ B-04 完了: migrations/0001_initial_schema.sql が作成されている（25テーブル v4版）
+□ B-05 完了: sort_order衝突が解消されている（v3で完了済み）
+□ B-06 完了: マイグレーションSQL が v4 の25テーブルを網羅している
+□ B-07 準備: app_users の初期adminユーザーのメールアドレスが確定している
+□ B-08 確認: system_settings の初期データが SQL に含まれている
+□ D-01〜D-06 の設計事項がドキュメントに反映されている（v3以降で完了）
+□ 11_ENUM_STATUS_SPEC.md の全enum定義が最新である
+□ Hono + Cloudflare Pages プロジェクト初期化が可能な状態である
+□ D1データベース作成コマンドが実行可能である
+□ wrangler.jsonc の設定が完了している
+□ Cloudflare Access の設定が完了している（認証用）
+```
 
 ---
 
 *最終更新: 2026-03-07*
 *作成: 計画優先フェーズ（実装未着手）*
+*改訂: v4 スナップショット・認証・新規テーブル追加反映*
