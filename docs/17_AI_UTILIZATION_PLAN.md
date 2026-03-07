@@ -1,8 +1,11 @@
-# AI 活用計画 v1（OpenAI 統合設計）
+# AI 活用計画 v2（OpenAI 統合設計 — 正式改訂版）
 
 > **目的**: OpenAI API を「読む・気づく・整理する」の3役割に限定し、見積もりミス防止の本来目的に直結する形で Phase 1 / Phase 2 に落とし込む。
 > **大原則**: AI は提案のみ。最終判断は人間。自動反映禁止（13_AI_DEV_TEAM_INSTRUCTIONS.md P-10 準拠）。
 > **位置づけ**: 16_UX_RISK_PREVENTION_DESIGN.md と対をなすドキュメント。UX 要件の AI 実装方針。
+> **改訂履歴**:
+> - v1: 初版作成
+> - **v2: AI 警告の severity/confidence/推奨アクション体系を追加。KPI 責任者を設定。low confidence 表示ポリシーを明確化。PDF 読取の確認画面フローを強化。**
 
 ---
 
@@ -69,6 +72,67 @@ interface AIConditionCheckInput {
 - COST_OVERVIEW の「AIチェック」ボタン → 結果は見積リスクセンター（UX-01）に表示
 - 各警告は人間が確認 → 解決/無視を選択
 
+### AI 警告の severity / confidence / 推奨アクション体系
+
+> AI が生成する警告には必ず以下の3属性を付与する。UI 表示はこの体系に従う。
+
+#### severity（重大度）— AI が判定
+
+| severity | 日本語 | UI 表示 | 表示条件 | ユーザーへの意味 |
+|----------|--------|---------|---------|----------------|
+| `high` | 高・今すぐ確認 | 🔴 赤バッジ + 見積リスクセンター最上位 | 原価に直結する未設定/矛盾 | **放置すると見積ミスになる可能性が高い** |
+| `medium` | 中・可能性あり | 🟡 黄バッジ | 条件不整合の可能性 | **確認が望ましい。無視しても致命的ではない場合あり** |
+| `low` | 低・参考情報 | ℹ️ 灰バッジ | 一般的な注意喚起 | **知っておくとよい情報。対応不要の場合が多い** |
+
+#### confidence（確信度）— AI が判定
+
+| confidence 範囲 | 表示ラベル | UI 表示ポリシー |
+|----------------|-----------|----------------|
+| **≥ 0.8** | 高確信 | severity に応じたバッジをそのまま表示 |
+| **0.5 ≤ c < 0.8** | 中確信 | バッジに「（AI 推定）」を付記。severity を1段階下げて表示 |
+| **< 0.5** | 低確信 | **デフォルト非表示**。「低確信の警告も表示する」チェックボックスで展開可能（AI-P-02 準拠） |
+
+> **重要**: confidence < 0.5 の警告をデフォルト表示すると、ノイズが増え「AI が使えない」印象を与える。必ず折りたたむ。
+
+#### suggested_action（推奨アクション）— AI が提案
+
+| アクションコード | 日本語 | UI ボタン | 遷移先 |
+|-----------------|--------|----------|--------|
+| `check_input` | 入力内容を確認 | 「該当項目を確認する」 | PROJECT_DETAIL の該当ステップ |
+| `check_item` | 工種明細を確認 | 「工種詳細を確認する」 | COST_CATEGORY の該当工種 |
+| `add_item` | 明細の追加を検討 | 「工種詳細へ移動」 | COST_CATEGORY |
+| `update_price` | 単価の確認 | 「単価を確認する」 | COST_CATEGORY のインライン編集 |
+| `no_action` | 参考情報（対応不要） | 表示のみ（ボタンなし） | — |
+
+#### AI 警告出力の構造化 JSON
+
+```typescript
+interface AIWarningOutput {
+  warnings: {
+    pattern_code: string;          // C-01〜C-05
+    message: string;               // 日本語メッセージ
+    severity: 'high' | 'medium' | 'low';
+    confidence: number;            // 0.0〜1.0
+    suggested_action: 'check_input' | 'check_item' | 'add_item' | 'update_price' | 'no_action';
+    related_category_code?: string; // 関連工種コード
+    detail?: string;               // 補足情報
+  }[];
+}
+```
+
+#### project_warnings への保存マッピング
+
+```
+AI output → project_warnings カラム:
+  message → message
+  severity → severity
+  confidence → metadata JSON 内 { confidence: 0.85 }
+  suggested_action → metadata JSON 内 { suggested_action: 'check_item' }
+  related_category_code → category_code
+  source = 'ai'
+  warning_type = 'ai_condition_mismatch' | 'ai_missing_input' | ...
+```
+
 **プロンプト設計方針**:
 - system prompt に平松建築の建築知識をハードコード（工種間の依存関係、地域条件の特殊性）
 - user prompt に案件データをJSON形式で渡す
@@ -130,10 +194,36 @@ interface ParsedDocumentResult {
 
 **重要**: AI が抽出した内容は **確認画面** を必ず経由する。自動反映禁止。
 
+**確認画面フローの強化仕様（v2 追加）**:
+
+```
+1. ユーザーが PDF をアップロード
+2. AI が構造化データを生成（confidence 付き）
+3. 確認画面表示:
+   ┌─────────────────────────────────────────────────────────┐
+   │ 📄 業者見積読取結果  ○○建材  confidence 全体: 0.82      │
+   ├─────────────────────────────────────────────────────────┤
+   │ ┌────────┬──────┬──────┬──────┬────────┬──────┐         │
+   │ │項目名   │数量  │単価  │金額  │推定工種 │確信度│         │
+   │ ├────────┼──────┼──────┼──────┼────────┼──────┤         │
+   │ │断熱材A  │120m2 │2,800 │336K │insulation│✅0.92│        │
+   │ │特殊部材B│  5個 │12,000│ 60K │(不明)   │⚠0.35│         │
+   │ │運搬費   │  1式 │15,000│ 15K │foundation│✅0.78│        │
+   │ └────────┴──────┴──────┴──────┴────────┴──────┘         │
+   │                                                         │
+   │ ⚠ confidence < 0.5 の項目は赤ハイライト                  │
+   │   → ユーザーが手動で工種を選択・修正してから反映           │
+   │                                                         │
+   │ [全て破棄] [選択項目のみ反映] [全て反映]                   │
+   │ ※「全て反映」でも project_cost_items に即書込みではなく     │
+   │   手修正値としてプレフィルされる（保存は別途）             │
+   └─────────────────────────────────────────────────────────┘
+```
+
 **Phase 1 実装範囲**:
 - 業者見積 PDF の基本読取（D-01）
 - R2 へのアップロード機能
-- 確認・修正画面（シンプルなテーブル形式）
+- 確認・修正画面（上記仕様に準拠）
 - project_input_sources テーブルへの記録
 
 **Phase 2 拡張**:
@@ -325,10 +415,37 @@ interface ClassifyReasonResult {
 | AI-SC-02 | PDF 読取が業者見積から項目・金額を正しく抽出する | 抽出精度 ≥ 80%（項目名一致ベース） |
 | AI-SC-03 | 理由分類が正しいコードを提案する | 分類精度 ≥ 70%（人間判定ベース） |
 | AI-SC-04 | AI 機能が無効でもシステムが正常動作する | API キー未設定時の graceful degradation |
+| AI-SC-05 | severity/confidence が正しく付与される | テスト案件4件で全警告に severity + confidence 付与 |
+| AI-SC-06 | low confidence 警告がデフォルト非表示 | confidence < 0.5 の警告が折りたたみ状態 |
+
+---
+
+## 10. KPI 責任者マッピング
+
+> 16_UX_RISK_PREVENTION_DESIGN.md KPI-01〜KPI-06 の各指標に責任者を設定し、改善サイクルを回す。
+
+| KPI | 指標名 | 主担当責任者 | 改善アクション |
+|-----|--------|------------|---------------|
+| KPI-01 | 見積漏れ警告件数 | **積算責任者**（estimator） | 警告が繰り返される工種 → ルール追加 or AI プロンプト改善 |
+| KPI-02 | 手修正率 | **管理者**（manager） | 手修正率が高い工種 → マスタ単価見直し or 計算ロジック改善 |
+| KPI-03 | 再生成差分の確認漏れ率 | **積算責任者**（estimator） | diff 未確認のまま案件進行 → 運用ルール見直し |
+| KPI-04 | 商談提示額との乖離件数 | **営業責任者**（manager） | 乖離が頻発 → 粗利率設定の見直し or 営業への事前共有ルール |
+| KPI-05 | AI 警告の採用率 | **運用改善担当**（admin） | 採用率が低い → AI プロンプト精度改善 or 不要パターン除外 |
+| KPI-06 | 入力完了率 | **積算責任者**（estimator） | 入力率が低い案件 → ステップ式UI の必須項目見直し |
+
+### KPI 運用サイクル
+
+```
+月次レビュー:
+1. admin が DASHBOARD の管理者向け集計セクション（UX-05）を確認
+2. KPI-01〜06 の数値を確認し、悪化傾向を特定
+3. 責任者が改善アクションを決定
+4. 次月レビューで効果を検証
+```
 
 ---
 
 *最終更新: 2026-03-07*
-*改訂番号: v1（新規作成）*
+*改訂番号: v2（正式改訂 — severity/confidence/推奨アクション体系追加、KPI責任者設定、low confidence表示ポリシー明確化、PDF確認画面フロー強化）*
 *位置づけ: 16_UX_RISK_PREVENTION_DESIGN.md と対をなす AI 活用設計。13_AI_DEV_TEAM_INSTRUCTIONS.md の AI 方針補完。*
-*前提ドキュメント: 03_SCREEN_v3, 04_OPENAI_API, 13_AI_DEV_v3, 16_UX_RISK_PREVENTION*
+*前提ドキュメント: 03_SCREEN_v3, 04_OPENAI_API, 13_AI_DEV_v3, 16_UX_RISK_PREVENTION_v2*

@@ -365,7 +365,80 @@
 
 ---
 
-## 5. 実装の鉄則（コーディング規約）
+## ★ 4-A. UX 依存運用ルール（16_UX_RISK_PREVENTION_v2 / 17_AI_UTILIZATION_PLAN_v2 準拠）
+
+> P-09〜P-10、R-09 を補完する、UX/AI 実装時の具体的な運用ルール。
+
+### UX-R-01: 見積リスクセンターの優先順位は変更禁止
+
+```
+ルール: COST_OVERVIEW の見積リスクセンター（UX-01）の表示優先順位は
+        16_UX_RISK_PREVENTION_v2.md で定義された5段階順序に固定する。
+        1) 原価直結の未設定条件
+        2) 再生成差分未処理
+        3) 商談提示額との乖離
+        4) AI 検出の注意点
+        5) 一般注意（要確認工種・標準外候補・未レビュー工種）
+        この順序をコード上で恣意的に変更してはならない。
+根拠: 16_UX_RISK_PREVENTION_DESIGN_v2.md UX-01
+```
+
+### UX-R-02: AI 警告の low confidence はデフォルト非表示
+
+```
+ルール: AI が生成する警告の confidence < 0.5 のものは、
+        UI 上でデフォルト非表示（折りたたみ状態）とする。
+        「低確信の警告も表示する」チェックボックスで展開可能にする。
+        confidence < 0.5 の警告をデフォルト値（ドロップダウン初期値等）に
+        使用することは禁止。
+根拠: 17_AI_UTILIZATION_PLAN_v2.md AI-P-02, confidence テーブル
+関連禁止事項: AI-P-02
+```
+
+### UX-R-03: AI 警告には severity/confidence/suggested_action を必ず付与
+
+```
+ルール: POST /api/ai/check-conditions のレスポンスは
+        各警告に severity ('high'|'medium'|'low'),
+        confidence (0.0〜1.0), suggested_action を必ず含む。
+        これらが欠落した警告は project_warnings に保存しない。
+根拠: 17_AI_UTILIZATION_PLAN_v2.md AIWarningOutput 型定義
+```
+
+### UX-R-04: PDF 読取結果は確認画面を必ず経由
+
+```
+ルール: POST /api/ai/parse-document の結果は、
+        必ず確認・修正画面（テーブル形式）を経由してから反映する。
+        confidence < 0.5 の項目は赤ハイライトで表示する。
+        「全て反映」ボタンを押しても即座に project_cost_items に
+        書き込まず、手修正値としてプレフィルする（保存は別途）。
+根拠: 17_AI_UTILIZATION_PLAN_v2.md AI-B, AI-P-01
+関連禁止事項: P-10, AI-P-01
+```
+
+### UX-R-05: 手修正理由コードの選択は必須
+
+```
+ルール: manual_quantity / manual_unit_price / manual_amount のいずれかを
+        設定する場合、override_reason_category（理由コード）の選択を必須とする。
+        理由コードは 8 種:
+        site_condition / customer_request / regulatory / spec_change /
+        price_update / correction / vendor_quote / other
+        override_reason_category が未選択の場合は 400 Bad Request を返す。
+根拠: 16_UX_RISK_PREVENTION_v2.md UX-04, R-08 を補完
+```
+
+### UX-R-06: 生成前チェックリストの Critical 項目は生成を阻止
+
+```
+ルール: COST_OVERVIEW の「計算実行」ボタン押下時、
+        UX-07 チェックリストで ❌（Critical）判定の項目がある場合は
+        生成ボタンを無効化する。
+        ⚠️ のみの場合は確認ダイアログ表示後に生成可能。
+        全 ✅ の場合は即座に生成ジョブ投入。
+根拠: 16_UX_RISK_PREVENTION_v2.md UX-07
+```
 
 ### 5-1. 型安全
 
@@ -808,9 +881,20 @@ async function updateCostItem(
 □ R-10: 変更履歴が明示的に INSERT されているか
 ```
 
+## 14. UX 運用ルールチェックリスト（Step 8〜11 完了時に確認）
+
+```
+□ UX-R-01: 見積リスクセンターの優先順位が固定されているか（5段階順序）
+□ UX-R-02: AI 警告 confidence < 0.5 がデフォルト非表示か
+□ UX-R-03: AI 警告に severity/confidence/suggested_action が付与されているか
+□ UX-R-04: PDF 読取結果が確認画面を経由しているか
+□ UX-R-05: 手修正理由コード（8種）が必須選択になっているか
+□ UX-R-06: 生成前チェックリストの ❌ 項目で生成が阻止されるか
+```
+
 ---
 
 *最終更新: 2026-03-07*
 *対象: AI駆動開発チーム（Cursor / Claude Code / Copilot 等）*
-*改訂番号: v3（正式改訂 — 禁止事項15項目、絶対ルール10項目、数値整合性、Step 0境界明確化）*
-*前提ドキュメント: 01_DB_v4, 03_SCREEN_v3, 06_PLAN_v3, 11_ENUM, 12_MIGRATION, 14_DEP_MAP_v2, 15_MANAGEMENT_ITEMS, 16_UX_RISK_PREVENTION, 17_AI_UTILIZATION_PLAN*
+*改訂番号: v3（正式改訂 — 禁止事項15項目、絶対ルール10項目、UX運用ルール6項目、数値整合性、Step 0境界明確化）*
+*前提ドキュメント: 01_DB_v4, 03_SCREEN_v3, 06_PLAN_v3, 11_ENUM, 12_MIGRATION, 14_DEP_MAP_v2, 15_MANAGEMENT_ITEMS, 16_UX_RISK_PREVENTION_v2, 17_AI_UTILIZATION_PLAN_v2*
