@@ -66,18 +66,27 @@ function layout(title: string, bodyContent: string, activeTab: string = '') {
             <i class="fas fa-building text-hm-600 text-lg"></i>
             <span class="font-bold text-gray-800 text-sm">平松建築 原価管理</span>
           </a>
-          <div class="hidden md:flex space-x-1">
+          <div class="hidden md:flex space-x-1" x-data="navLinks()" x-init="loadNav()">
             <a href="/ui/projects" class="px-3 py-2 rounded-md text-sm font-medium \${activeTab === 'projects' ? 'bg-hm-50 text-hm-700' : 'text-gray-600 hover:bg-gray-100'}">
               <i class="fas fa-folder-open mr-1"></i>案件一覧
             </a>
             <a href="/ui/manual" class="px-3 py-2 rounded-md text-sm font-medium \${activeTab === 'manual' ? 'bg-hm-50 text-hm-700' : 'text-gray-600 hover:bg-gray-100'}">
               <i class="fas fa-book mr-1"></i>使い方ガイド
             </a>
+            <a x-show="navUser && (navUser.role==='admin' || navUser.role==='manager')" x-cloak href="/ui/admin" class="px-3 py-2 rounded-md text-sm font-medium \${activeTab === 'admin' ? 'bg-hm-50 text-hm-700' : 'text-gray-600 hover:bg-gray-100'}">
+              <i class="fas fa-cog mr-1"></i>管理
+            </a>
           </div>
         </div>
         <div class="flex items-center space-x-3">
           <a href="/ui/manual" class="text-hm-600 hover:text-hm-800 text-sm font-medium px-2 py-1 rounded hover:bg-hm-50 transition md:hidden"><i class="fas fa-question-circle mr-1"></i>ヘルプ</a>
-          <span class="text-xs text-gray-400">v0.8.1</span>
+          <div x-data="userMenu()" x-init="loadUser()" class="flex items-center gap-2">
+            <span x-show="user" class="text-xs text-gray-500 hidden sm:inline" x-text="user?.name"></span>
+            <span x-show="user" class="text-xs px-1.5 py-0.5 rounded-full font-medium" :class="{'bg-red-100 text-red-700':user?.role==='admin','bg-blue-100 text-blue-700':user?.role==='manager','bg-green-100 text-green-700':user?.role==='estimator','bg-gray-100 text-gray-600':user?.role==='viewer'}" x-text="user?.role"></span>
+            <button x-show="user" @click="logout()" class="text-xs text-gray-400 hover:text-red-500 transition" title="ログアウト"><i class="fas fa-sign-out-alt"></i></button>
+            <a x-show="!user" href="/ui/login" class="text-xs text-hm-600 hover:text-hm-800 font-medium"><i class="fas fa-sign-in-alt mr-1"></i>ログイン</a>
+          </div>
+          <span class="text-xs text-gray-400">v0.9.0</span>
         </div>
       </div>
     </div>
@@ -92,6 +101,21 @@ function layout(title: string, bodyContent: string, activeTab: string = '') {
       async patch(path, body) { try { const r = await fetch('/api' + path, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) }); return r.json(); } catch(e) { return { success:false, error: e.message }; } },
       async del(path) { try { const r = await fetch('/api' + path, { method:'DELETE' }); return r.json(); } catch(e) { return { success:false, error: e.message }; } },
     };
+    function userMenu() {
+      return {
+        user: null,
+        async loadUser() {
+          try { const r = await fetch('/api/auth/me'); const d = await r.json(); if (d.success) this.user = d.data; } catch {}
+        },
+        async logout() {
+          await fetch('/api/auth/logout', { method: 'POST' });
+          location.href = '/ui/login';
+        }
+      };
+    }
+    function navLinks() {
+      return { navUser: null, async loadNav() { try { const r = await fetch('/api/auth/me'); const d = await r.json(); if(d.success) this.navUser = d.data; } catch{} } };
+    }
     const fmt = {
       yen(n) { return n != null ? '¥' + Math.round(n).toLocaleString('ja-JP') : '-'; },
       pct(n) { return n != null ? (Math.round(n*10)/10) + '%' : '-'; },
@@ -161,6 +185,7 @@ uiRoutes.get('/ui/projects', (c) => {
               <span x-show="p.lineup"><i class="fas fa-home mr-0.5"></i><span x-text="p.lineup"></span></span>
               <span x-show="p.tsubo"><i class="fas fa-ruler-combined mr-0.5"></i><span x-text="p.tsubo + '坪'"></span></span>
               <span x-show="p.customer_name"><i class="fas fa-user mr-0.5"></i><span x-text="p.customer_name"></span></span>
+              <span x-show="p.assigned_to_name" class="text-hm-600"><i class="fas fa-user-tie mr-0.5"></i><span x-text="p.assigned_to_name"></span></span>
             </div>
             <div class="flex justify-between items-center mt-3 pt-3 border-t text-xs text-gray-400">
               <span>Rev <span x-text="p.revision_no || 0"></span></span>
@@ -939,6 +964,326 @@ uiRoutes.get('/ui/projects/:id', (c) => {
 
 
 // ==========================================================
+// /ui/login — Login Page
+// ==========================================================
+uiRoutes.get('/ui/login', (c) => {
+  return c.html(`<!DOCTYPE html>
+<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ログイン - 平松建築 原価管理</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+<script>tailwind.config={theme:{extend:{colors:{hm:{50:'#f0fdf4',100:'#dcfce7',500:'#22c55e',600:'#16a34a',700:'#15803d',800:'#166534'}}}}}</script>
+</head>
+<body class="bg-gradient-to-br from-hm-50 to-gray-100 min-h-screen flex items-center justify-center" x-data="loginForm()" x-init="checkAuth()">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-8 mx-4">
+    <div class="text-center mb-8">
+      <div class="w-16 h-16 bg-hm-100 rounded-full flex items-center justify-center mx-auto mb-4"><i class="fas fa-building text-hm-600 text-2xl"></i></div>
+      <h1 class="text-2xl font-bold text-gray-800">平松建築</h1>
+      <p class="text-sm text-gray-500 mt-1">概算原価管理システム</p>
+    </div>
+    <div class="space-y-4">
+      <div><label class="block text-xs font-medium text-gray-500 mb-1">メールアドレス</label>
+        <div class="relative"><i class="fas fa-envelope absolute left-3 top-3 text-gray-400 text-sm"></i>
+          <input x-model="email" type="email" class="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-2.5 text-sm focus:ring-2 focus:ring-hm-500 focus:border-transparent" placeholder="user@hiramatsu.example.com" @keydown.enter="login()"></div></div>
+      <div><label class="block text-xs font-medium text-gray-500 mb-1">パスワード</label>
+        <div class="relative"><i class="fas fa-lock absolute left-3 top-3 text-gray-400 text-sm"></i>
+          <input x-model="password" type="password" class="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-2.5 text-sm focus:ring-2 focus:ring-hm-500 focus:border-transparent" placeholder="パスワード" @keydown.enter="login()"></div></div>
+      <button @click="login()" class="w-full bg-hm-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-hm-700 transition shadow-sm" :disabled="loading">
+        <span x-show="!loading"><i class="fas fa-sign-in-alt mr-1"></i>ログイン</span>
+        <span x-show="loading"><i class="fas fa-spinner fa-spin mr-1"></i>認証中...</span>
+      </button>
+      <div x-show="error" class="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600"><i class="fas fa-exclamation-circle mr-1"></i><span x-text="error"></span></div>
+      <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-700">
+        <i class="fas fa-info-circle mr-1"></i><strong>初回ログイン</strong>：管理者から通知されたメールアドレスで、任意のパスワード（4文字以上）を設定してください。そのパスワードが今後のログインに使われます。
+      </div>
+    </div>
+    <div class="mt-6 pt-4 border-t text-center text-xs text-gray-400">v0.9.0 | <a href="/ui/manual" class="text-hm-600 hover:underline">使い方ガイド</a></div>
+  </div>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script>
+  function loginForm() {
+    return {
+      email: '', password: '', error: '', loading: false,
+      async checkAuth() {
+        try { const r = await fetch('/api/auth/me'); const d = await r.json(); if (d.success) location.href = '/ui/projects'; } catch {}
+      },
+      async login() {
+        if (!this.email || !this.password) { this.error = 'メールアドレスとパスワードを入力してください'; return; }
+        this.loading = true; this.error = '';
+        try {
+          const r = await fetch('/api/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email:this.email,password:this.password}) });
+          const d = await r.json();
+          if (d.success) { location.href = '/ui/projects'; } else { this.error = d.error || 'ログインに失敗しました'; }
+        } catch(e) { this.error = '通信エラーが発生しました'; }
+        this.loading = false;
+      }
+    };
+  }
+  </script>
+</body></html>`);
+});
+
+// ==========================================================
+// /ui/admin — Admin Dashboard (User Management + Master Items)
+// ==========================================================
+uiRoutes.get('/ui/admin', (c) => {
+  return c.html(layout('管理画面', `
+    <div x-data="adminPanel()" x-init="init()">
+      <div class="flex justify-between items-center mb-6">
+        <div><h1 class="text-2xl font-bold text-gray-800"><i class="fas fa-cog mr-2 text-hm-600"></i>管理画面</h1>
+          <p class="text-sm text-gray-500 mt-1">ユーザー管理・マスタ設定</p></div>
+      </div>
+
+      <!-- Admin Tabs -->
+      <div class="flex border-b mb-5 bg-white rounded-t-xl overflow-x-auto">
+        <button @click="tab='users'" class="px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap" :class="tab==='users' ? 'border-hm-600 text-hm-700 bg-hm-50/50' : 'border-transparent text-gray-500 hover:text-gray-700'"><i class="fas fa-users mr-1.5"></i>ユーザー管理</button>
+        <button @click="tab='master'" class="px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap" :class="tab==='master' ? 'border-hm-600 text-hm-700 bg-hm-50/50' : 'border-transparent text-gray-500 hover:text-gray-700'"><i class="fas fa-database mr-1.5"></i>単価マスタ</button>
+        <button @click="tab='settings'" class="px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap" :class="tab==='settings' ? 'border-hm-600 text-hm-700 bg-hm-50/50' : 'border-transparent text-gray-500 hover:text-gray-700'"><i class="fas fa-sliders-h mr-1.5"></i>システム設定</button>
+      </div>
+
+      <!-- TAB: Users -->
+      <div x-show="tab==='users'" class="fade-in space-y-4">
+        <div class="flex justify-between items-center">
+          <div class="text-sm text-gray-500"><span x-text="users.length"></span> 名のユーザー</div>
+          <button @click="showCreateUser=true" class="bg-hm-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-hm-700 transition shadow-sm"><i class="fas fa-plus mr-1"></i>ユーザー追加</button>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border overflow-hidden"><div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">名前</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">メール</th>
+            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500">権限</th>
+            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500">状態</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">最終ログイン</th>
+            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500">操作</th>
+          </tr></thead><tbody class="divide-y divide-gray-100">
+            <template x-for="u in users" :key="u.id"><tr class="hover:bg-gray-50 text-sm">
+              <td class="px-4 py-3 font-medium text-gray-800" x-text="u.name"></td>
+              <td class="px-4 py-3 text-gray-500 text-xs font-mono" x-text="u.email"></td>
+              <td class="px-4 py-3 text-center"><span class="px-2 py-0.5 text-xs rounded-full font-medium" :class="{'bg-red-100 text-red-700':u.role==='admin','bg-blue-100 text-blue-700':u.role==='manager','bg-green-100 text-green-700':u.role==='estimator','bg-gray-100 text-gray-600':u.role==='viewer'}" x-text="roleLabel(u.role)"></span></td>
+              <td class="px-4 py-3 text-center"><span class="px-2 py-0.5 text-xs rounded-full font-medium" :class="u.status==='active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'" x-text="u.status==='active' ? '有効' : '無効'"></span></td>
+              <td class="px-4 py-3 text-xs text-gray-400" x-text="u.last_login_at ? fmt.datetime(u.last_login_at) : '未ログイン'"></td>
+              <td class="px-4 py-3 text-center"><button @click="openEditUser(u)" class="text-hm-600 hover:text-hm-800 mr-2"><i class="fas fa-pen"></i></button>
+                <button @click="deleteUser(u)" x-show="u.status==='active'" class="text-red-400 hover:text-red-600"><i class="fas fa-trash"></i></button></td>
+            </tr></template>
+          </tbody></table></div>
+        </div>
+
+        <!-- Create User Modal -->
+        <div x-show="showCreateUser" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" @click.self="showCreateUser=false">
+          <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 slide-in" @click.stop>
+            <h2 class="text-lg font-bold mb-4"><i class="fas fa-user-plus mr-2 text-hm-600"></i>ユーザー追加</h2>
+            <div class="space-y-3">
+              <div><label class="block text-xs font-medium text-gray-500 mb-1">名前 <span class="text-red-400">*</span></label><input x-model="userForm.name" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500" placeholder="山田太郎"></div>
+              <div><label class="block text-xs font-medium text-gray-500 mb-1">メールアドレス <span class="text-red-400">*</span></label><input x-model="userForm.email" type="email" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500" placeholder="yamada@hiramatsu.co.jp"></div>
+              <div class="grid grid-cols-2 gap-3">
+                <div><label class="block text-xs font-medium text-gray-500 mb-1">権限 <span class="text-red-400">*</span></label><select x-model="userForm.role" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500">
+                  <option value="estimator">見積担当</option><option value="manager">管理者</option><option value="admin">システム管理</option><option value="viewer">閲覧者</option></select></div>
+                <div><label class="block text-xs font-medium text-gray-500 mb-1">初期パスワード</label><input x-model="userForm.password" type="password" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500" placeholder="4文字以上"></div>
+              </div>
+              <div><label class="block text-xs font-medium text-gray-500 mb-1">部署</label><input x-model="userForm.department" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500" placeholder="設計部"></div>
+            </div>
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-2 mt-3 text-xs text-blue-700"><i class="fas fa-info-circle mr-1"></i>パスワード未設定の場合、ユーザーが初回ログイン時に自分で設定します。</div>
+            <div class="flex justify-end gap-2 mt-4"><button @click="showCreateUser=false" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">キャンセル</button>
+              <button @click="createUser()" class="px-5 py-2 text-sm bg-hm-600 text-white rounded-lg hover:bg-hm-700 font-medium" :disabled="userSaving"><span x-show="!userSaving"><i class="fas fa-check mr-1"></i>作成</span><span x-show="userSaving"><i class="fas fa-spinner fa-spin"></i></span></button></div>
+            <div x-show="userError" class="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600" x-text="userError"></div>
+          </div>
+        </div>
+
+        <!-- Edit User Modal -->
+        <div x-show="editUserModal.show" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" @click.self="editUserModal.show=false">
+          <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 slide-in" @click.stop>
+            <h2 class="text-lg font-bold mb-4"><i class="fas fa-user-edit mr-2 text-hm-600"></i>ユーザー編集</h2>
+            <div class="space-y-3">
+              <div><label class="block text-xs font-medium text-gray-500 mb-1">名前</label><input x-model="editUserModal.form.name" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500"></div>
+              <div class="grid grid-cols-2 gap-3">
+                <div><label class="block text-xs font-medium text-gray-500 mb-1">権限</label><select x-model="editUserModal.form.role" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500">
+                  <option value="admin">システム管理</option><option value="manager">管理者</option><option value="estimator">見積担当</option><option value="viewer">閲覧者</option></select></div>
+                <div><label class="block text-xs font-medium text-gray-500 mb-1">状態</label><select x-model="editUserModal.form.status" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500">
+                  <option value="active">有効</option><option value="inactive">無効</option><option value="suspended">停止</option></select></div>
+              </div>
+              <div><label class="block text-xs font-medium text-gray-500 mb-1">パスワード再設定</label><input x-model="editUserModal.form.password" type="password" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500" placeholder="変更しない場合は空欄"></div>
+            </div>
+            <div class="flex justify-end gap-2 mt-4"><button @click="editUserModal.show=false" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">キャンセル</button>
+              <button @click="updateUser()" class="px-5 py-2 text-sm bg-hm-600 text-white rounded-lg hover:bg-hm-700 font-medium" :disabled="userSaving"><span x-show="!userSaving"><i class="fas fa-save mr-1"></i>保存</span><span x-show="userSaving"><i class="fas fa-spinner fa-spin"></i></span></button></div>
+            <div x-show="userError" class="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600" x-text="userError"></div>
+          </div>
+        </div>
+
+        <!-- Role explanation -->
+        <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm">
+          <h3 class="font-bold text-blue-800 mb-2"><i class="fas fa-shield-alt mr-1"></i>権限の説明</h3>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+            <div class="bg-white rounded-lg p-3 border"><span class="font-bold text-red-700">admin</span><br>全機能利用可。ユーザー管理、マスタ変更、全案件閲覧。</div>
+            <div class="bg-white rounded-lg p-3 border"><span class="font-bold text-blue-700">manager</span><br>全案件閲覧・レビュー。ユーザー一覧閲覧可。マスタ変更不可。</div>
+            <div class="bg-white rounded-lg p-3 border"><span class="font-bold text-green-700">estimator</span><br>自分の案件を作成・管理。他者の案件は閲覧不可。</div>
+            <div class="bg-white rounded-lg p-3 border"><span class="font-bold text-gray-600">viewer</span><br>自分に割り当てられた案件のみ閲覧可能。編集不可。</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: Master Items -->
+      <div x-show="tab==='master'" class="fade-in space-y-4">
+        <div class="bg-white rounded-xl border p-5">
+          <h3 class="font-semibold mb-3"><i class="fas fa-database mr-1.5 text-hm-600"></i>単価マスタ管理</h3>
+          <p class="text-sm text-gray-500 mb-4">各工種のデフォルト単価を確認・変更できます。変更した単価は次回の計算時に反映されます。</p>
+          <div class="flex gap-2 mb-4">
+            <input x-model="masterSearch" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-64 focus:ring-2 focus:ring-hm-500" placeholder="工種名・カテゴリで検索...">
+            <select x-model="masterCategory" @change="loadMasterItems()" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm">
+              <option value="">全カテゴリ</option>
+              <template x-for="cat in categories" :key="cat.category_code"><option :value="cat.category_code" x-text="cat.category_code + ' - ' + cat.category_name"></option></template>
+            </select>
+          </div>
+          <div class="overflow-x-auto"><table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr>
+            <th class="px-3 py-2.5 text-left text-xs font-semibold text-gray-500">カテゴリ</th>
+            <th class="px-3 py-2.5 text-left text-xs font-semibold text-gray-500">工種名</th>
+            <th class="px-3 py-2.5 text-left text-xs font-semibold text-gray-500">計算方法</th>
+            <th class="px-3 py-2.5 text-right text-xs font-semibold text-gray-500">単価</th>
+            <th class="px-3 py-2.5 text-right text-xs font-semibold text-gray-500">固定額</th>
+            <th class="px-3 py-2.5 text-left text-xs font-semibold text-gray-500">単位</th>
+            <th class="px-3 py-2.5 text-center text-xs font-semibold text-gray-500">操作</th>
+          </tr></thead><tbody class="divide-y divide-gray-100">
+            <template x-for="item in filteredMasterItems()" :key="item.id"><tr class="hover:bg-gray-50 text-sm">
+              <td class="px-3 py-2 text-xs text-gray-500 font-mono" x-text="item.category_code"></td>
+              <td class="px-3 py-2 font-medium text-gray-800 max-w-xs truncate" x-text="item.item_name"></td>
+              <td class="px-3 py-2 text-xs"><span class="px-1.5 py-0.5 bg-gray-100 rounded" x-text="item.calculation_type"></span></td>
+              <td class="px-3 py-2 text-right font-mono text-sm" x-text="item.base_unit_price != null ? fmt.yen(item.base_unit_price) : '-'"></td>
+              <td class="px-3 py-2 text-right font-mono text-sm" x-text="item.base_fixed_amount != null ? fmt.yen(item.base_fixed_amount) : '-'"></td>
+              <td class="px-3 py-2 text-xs text-gray-500" x-text="item.unit || '-'"></td>
+              <td class="px-3 py-2 text-center"><button @click="openMasterEdit(item)" class="text-hm-600 hover:text-hm-800"><i class="fas fa-pen"></i></button></td>
+            </tr></template>
+          </tbody></table></div>
+          <div x-show="masterItems.length === 0 && !masterLoading" class="py-8 text-center text-gray-400"><i class="fas fa-database text-3xl mb-2"></i><p>マスタアイテムがありません</p></div>
+          <div x-show="masterLoading" class="py-8 text-center text-gray-400"><i class="fas fa-spinner fa-spin text-2xl mb-2"></i><p>読み込み中...</p></div>
+          <div class="mt-2 text-xs text-gray-400" x-text="filteredMasterItems().length + ' / ' + masterItems.length + ' 件'"></div>
+        </div>
+
+        <!-- Master Edit Modal -->
+        <div x-show="masterEditModal.show" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" @click.self="masterEditModal.show=false">
+          <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 slide-in" @click.stop>
+            <h2 class="text-lg font-bold mb-2"><i class="fas fa-pen mr-2 text-hm-600"></i>単価変更</h2>
+            <div class="bg-gray-50 rounded-lg p-3 mb-4 text-sm"><span class="font-mono text-xs text-gray-400" x-text="masterEditModal.item?.category_code + ' / ' + masterEditModal.item?.item_code"></span><div class="font-bold text-gray-800 mt-1" x-text="masterEditModal.item?.item_name"></div></div>
+            <div class="space-y-3">
+              <div class="grid grid-cols-2 gap-3">
+                <div><label class="block text-xs font-medium text-gray-500 mb-1">デフォルト単価</label><input x-model.number="masterEditModal.form.base_unit_price" type="number" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500"></div>
+                <div><label class="block text-xs font-medium text-gray-500 mb-1">固定額</label><input x-model.number="masterEditModal.form.base_fixed_amount" type="number" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500"></div>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div><label class="block text-xs font-medium text-gray-500 mb-1">単位</label><input x-model="masterEditModal.form.unit" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500"></div>
+                <div><label class="block text-xs font-medium text-gray-500 mb-1">業者名</label><input x-model="masterEditModal.form.vendor_name" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500"></div>
+              </div>
+              <div><label class="block text-xs font-medium text-gray-500 mb-1">備考</label><textarea x-model="masterEditModal.form.note" rows="2" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500"></textarea></div>
+            </div>
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-2 mt-3 text-xs text-yellow-700"><i class="fas fa-exclamation-triangle mr-1"></i>単価の変更は既存案件には影響しません。変更後に案件を「再計算」すると新しい単価が反映されます。</div>
+            <div class="flex justify-end gap-2 mt-4"><button @click="masterEditModal.show=false" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">キャンセル</button>
+              <button @click="saveMasterItem()" class="px-5 py-2 text-sm bg-hm-600 text-white rounded-lg hover:bg-hm-700 font-medium" :disabled="masterSaving"><span x-show="!masterSaving"><i class="fas fa-save mr-1"></i>保存</span><span x-show="masterSaving"><i class="fas fa-spinner fa-spin"></i></span></button></div>
+            <div x-show="masterError" class="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600" x-text="masterError"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: System Settings -->
+      <div x-show="tab==='settings'" class="fade-in space-y-4">
+        <div class="bg-white rounded-xl border p-5">
+          <h3 class="font-semibold mb-3"><i class="fas fa-sliders-h mr-1.5 text-hm-600"></i>システム設定</h3>
+          <p class="text-sm text-gray-500 mb-4">粗利率の閾値やデフォルト値を変更できます。</p>
+          <div class="space-y-3">
+            <template x-for="s in settings" :key="s.setting_key">
+              <div class="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
+                <div class="flex-1"><div class="font-medium text-sm text-gray-800" x-text="s.description || s.setting_key"></div>
+                  <div class="text-xs text-gray-400 font-mono" x-text="s.setting_key"></div></div>
+                <input :type="s.value_type === 'boolean' ? 'text' : 'text'" :value="s.setting_value" @change="updateSetting(s.setting_key, $event.target.value)" class="w-32 border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-right font-mono focus:ring-2 focus:ring-hm-500">
+              </div>
+            </template>
+          </div>
+          <div x-show="settings.length === 0" class="py-6 text-center text-gray-400">設定がありません</div>
+        </div>
+      </div>
+
+      <!-- Toast -->
+      <div x-show="toast.show" x-cloak x-transition class="fixed bottom-5 right-5 z-50 max-w-sm">
+        <div class="rounded-xl shadow-lg px-4 py-3 flex items-center gap-3" :class="{'bg-green-600 text-white':toast.type==='success','bg-red-600 text-white':toast.type==='error'}">
+          <i :class="{'fas fa-check-circle':toast.type==='success','fas fa-exclamation-circle':toast.type==='error'}"></i>
+          <span class="text-sm" x-text="toast.message"></span></div>
+      </div>
+    </div>
+    <script>
+    function adminPanel() {
+      return {
+        tab: 'users', users: [], settings: [], categories: [], masterItems: [], masterLoading: false, masterSearch: '', masterCategory: '',
+        showCreateUser: false, userSaving: false, userError: '',
+        userForm: { name:'', email:'', role:'estimator', password:'', department:'' },
+        editUserModal: { show:false, user:null, form:{ name:'', role:'', status:'', password:'' } },
+        masterEditModal: { show:false, item:null, form:{ base_unit_price:null, base_fixed_amount:null, unit:'', vendor_name:'', note:'' } },
+        masterSaving: false, masterError: '',
+        toast: { show:false, message:'', type:'info' },
+        roleLabel(r) { return {admin:'管理者',manager:'マネージャー',estimator:'見積担当',viewer:'閲覧者'}[r]||r; },
+        showToast(msg, type='success') { this.toast={show:true,message:msg,type}; setTimeout(()=>{this.toast.show=false;},3000); },
+        async init() {
+          await Promise.all([this.loadUsers(), this.loadSettings(), this.loadCategories(), this.loadMasterItems()]);
+        },
+        async loadUsers() { const r = await api.get('/admin/users'); if(r.success) this.users = r.data || []; },
+        async loadSettings() { const r = await api.get('/master/system-settings'); if(r.success) this.settings = r.data || []; },
+        async loadCategories() { const r = await api.get('/master/categories'); if(r.success) this.categories = r.data || []; },
+        async loadMasterItems() {
+          this.masterLoading = true;
+          const q = this.masterCategory ? '?category=' + this.masterCategory : '';
+          const r = await api.get('/master/items' + q); if(r.success) this.masterItems = r.data || [];
+          this.masterLoading = false;
+        },
+        filteredMasterItems() {
+          if (!this.masterSearch) return this.masterItems;
+          const q = this.masterSearch.toLowerCase();
+          return this.masterItems.filter(i => (i.item_name||'').toLowerCase().includes(q) || (i.category_code||'').toLowerCase().includes(q) || (i.item_code||'').toLowerCase().includes(q));
+        },
+        async createUser() {
+          this.userSaving=true; this.userError='';
+          const body = {...this.userForm}; if(!body.password) delete body.password; if(!body.department) delete body.department;
+          const r = await api.post('/admin/users', body); this.userSaving=false;
+          if(r.success) { this.showCreateUser=false; this.showToast('ユーザーを作成しました'); this.userForm={name:'',email:'',role:'estimator',password:'',department:''}; await this.loadUsers(); }
+          else { this.userError = r.error || '作成に失敗しました'; }
+        },
+        openEditUser(u) { this.editUserModal.user = u; this.editUserModal.form = { name:u.name, role:u.role, status:u.status, password:'' }; this.userError=''; this.editUserModal.show=true; },
+        async updateUser() {
+          this.userSaving=true; this.userError='';
+          const body = {}; const f = this.editUserModal.form; const u = this.editUserModal.user;
+          if(f.name !== u.name) body.name = f.name;
+          if(f.role !== u.role) body.role = f.role;
+          if(f.status !== u.status) body.status = f.status;
+          if(f.password) body.password = f.password;
+          if(!Object.keys(body).length) { this.userError='変更がありません'; this.userSaving=false; return; }
+          const r = await api.patch('/admin/users/' + u.id, body); this.userSaving=false;
+          if(r.success) { this.editUserModal.show=false; this.showToast('ユーザーを更新しました'); await this.loadUsers(); }
+          else { this.userError = r.error || '更新に失敗しました'; }
+        },
+        async deleteUser(u) { if(!confirm(u.name + ' を無効化しますか？')) return;
+          const r = await api.del('/admin/users/' + u.id);
+          if(r.success) { this.showToast('ユーザーを無効化しました'); await this.loadUsers(); } else { this.showToast(r.error||'エラー','error'); }
+        },
+        openMasterEdit(item) { this.masterEditModal.item = item; this.masterEditModal.form = { base_unit_price:item.base_unit_price, base_fixed_amount:item.base_fixed_amount, unit:item.unit||'', vendor_name:item.vendor_name||'', note:item.note||'' }; this.masterError=''; this.masterEditModal.show=true; },
+        async saveMasterItem() {
+          this.masterSaving=true; this.masterError='';
+          // Use PATCH to update master item (need a new API endpoint, or use system approach)
+          // For now, update via master item version approach
+          const item = this.masterEditModal.item;
+          const form = this.masterEditModal.form;
+          // Simple direct update via a dedicated endpoint
+          const r = await api.patch('/master/items/' + item.id, form);
+          this.masterSaving=false;
+          if(r.success) { this.masterEditModal.show=false; this.showToast('単価を更新しました'); await this.loadMasterItems(); }
+          else { this.masterError = r.error || '更新に失敗しました'; }
+        },
+        async updateSetting(key, value) {
+          const r = await api.patch('/master/system-settings/' + key, { setting_value: value });
+          if(r.success) { this.showToast('設定を更新しました'); await this.loadSettings(); }
+          else { this.showToast(r.error || '更新に失敗しました', 'error'); }
+        },
+      };
+    }
+    </script>
+  `, 'admin'));
+});
+
+// ==========================================================
 // /ui/manual — User Manual Page (Completely Rewritten v2)
 // ==========================================================
 uiRoutes.get('/ui/manual', (c) => {
@@ -1025,18 +1370,47 @@ uiRoutes.get('/ui/manual', (c) => {
       <div class="bg-gray-50 rounded-xl border p-5 mb-8">
         <h2 class="text-sm font-bold text-gray-700 mb-3"><i class="fas fa-list-ol mr-1"></i>目次</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-1 text-sm">
+          <a href="#login" class="text-hm-700 hover:text-hm-900 py-1 hover:bg-hm-50 px-2 rounded"><i class="fas fa-chevron-right text-xs mr-1"></i>0. ログインとユーザー管理</a>
           <a href="#step1" class="text-hm-700 hover:text-hm-900 py-1 hover:bg-hm-50 px-2 rounded"><i class="fas fa-chevron-right text-xs mr-1"></i>1. 案件を作成する</a>
           <a href="#step2" class="text-hm-700 hover:text-hm-900 py-1 hover:bg-hm-50 px-2 rounded"><i class="fas fa-chevron-right text-xs mr-1"></i>2. 建物情報を入力する</a>
           <a href="#step3" class="text-hm-700 hover:text-hm-900 py-1 hover:bg-hm-50 px-2 rounded"><i class="fas fa-chevron-right text-xs mr-1"></i>3. 初期計算を実行する</a>
           <a href="#step4" class="text-hm-700 hover:text-hm-900 py-1 hover:bg-hm-50 px-2 rounded"><i class="fas fa-chevron-right text-xs mr-1"></i>4. 個別の工種見積を修正する</a>
           <a href="#step5" class="text-hm-700 hover:text-hm-900 py-1 hover:bg-hm-50 px-2 rounded"><i class="fas fa-chevron-right text-xs mr-1"></i>5. 原価サマリを確認する</a>
-          <a href="#step6" class="text-hm-700 hover:text-hm-900 py-1 hover:bg-hm-50 px-2 rounded"><i class="fas fa-chevron-right text-xs mr-1"></i>6. 売価を入力して粗利を確認する</a>
+          <a href="#step6" class="text-hm-700 hover:text-hm-900 py-1 hover:bg-hm-50 px-2 rounded"><i class="fas fa-chevron-right text-xs mr-1"></i>6. 売価見積もりとは（売価の意味と使い方）</a>
           <a href="#step7" class="text-hm-700 hover:text-hm-900 py-1 hover:bg-hm-50 px-2 rounded"><i class="fas fa-chevron-right text-xs mr-1"></i>7. リスクセンターで全体確認</a>
-          <a href="#step8" class="text-hm-700 hover:text-hm-900 py-1 hover:bg-hm-50 px-2 rounded"><i class="fas fa-chevron-right text-xs mr-1"></i>8. 仕様変更時の再計算と差分解決</a>
-          <a href="#faq" class="text-hm-700 hover:text-hm-900 py-1 hover:bg-hm-50 px-2 rounded"><i class="fas fa-chevron-right text-xs mr-1"></i>9. よくある質問 (FAQ)</a>
-          <a href="#terms" class="text-hm-700 hover:text-hm-900 py-1 hover:bg-hm-50 px-2 rounded"><i class="fas fa-chevron-right text-xs mr-1"></i>10. 用語集</a>
+          <a href="#step8" class="text-hm-700 hover:text-hm-900 py-1 hover:bg-hm-50 px-2 rounded"><i class="fas fa-chevron-right text-xs mr-1"></i>8. 再計算と差分解決</a>
+          <a href="#statuses" class="text-hm-700 hover:text-hm-900 py-1 hover:bg-hm-50 px-2 rounded"><i class="fas fa-chevron-right text-xs mr-1"></i>9. ステータスの意味と遷移</a>
+          <a href="#tabs" class="text-hm-700 hover:text-hm-900 py-1 hover:bg-hm-50 px-2 rounded"><i class="fas fa-chevron-right text-xs mr-1"></i>10. 各タブの詳細ガイド</a>
+          <a href="#master" class="text-hm-700 hover:text-hm-900 py-1 hover:bg-hm-50 px-2 rounded"><i class="fas fa-chevron-right text-xs mr-1"></i>11. 単価マスタの変更方法</a>
+          <a href="#faq" class="text-hm-700 hover:text-hm-900 py-1 hover:bg-hm-50 px-2 rounded"><i class="fas fa-chevron-right text-xs mr-1"></i>12. よくある質問 (FAQ)</a>
+          <a href="#terms" class="text-hm-700 hover:text-hm-900 py-1 hover:bg-hm-50 px-2 rounded"><i class="fas fa-chevron-right text-xs mr-1"></i>13. 用語集</a>
         </div>
       </div>
+
+      <!-- LOGIN & USER MANAGEMENT -->
+      <section id="login" class="bg-white rounded-xl border-2 border-blue-300 p-6 mb-5">
+        <h2 class="text-lg font-bold text-gray-800 mb-3 flex items-center"><span class="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm mr-3 flex-shrink-0">0</span>ログインとユーザー管理</h2>
+        <div class="space-y-3 text-sm text-gray-600">
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h3 class="font-bold text-blue-800 mb-2"><i class="fas fa-sign-in-alt mr-1"></i>ログイン方法</h3>
+            <ol class="list-decimal list-inside space-y-1 text-xs">
+              <li><a href="/ui/login" class="text-blue-600 underline">/ui/login</a> にアクセス</li>
+              <li>管理者から通知されたメールアドレスを入力</li>
+              <li><strong>初回ログイン</strong>：任意のパスワード（4文字以上）を設定。以降はそのパスワードでログイン</li>
+              <li>ログイン後、自動的に案件一覧へ遷移</li>
+            </ol>
+          </div>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+            <div class="bg-red-50 border border-red-200 rounded-lg p-3"><strong class="text-red-700">admin</strong><br>全機能利用可。ユーザー追加・削除、マスタ変更、全案件閲覧。</div>
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-3"><strong class="text-blue-700">manager</strong><br>全案件閲覧・レビュー。ユーザー一覧閲覧。</div>
+            <div class="bg-green-50 border border-green-200 rounded-lg p-3"><strong class="text-green-700">estimator</strong><br>自分の案件を作成・管理。他者の案件は見えない。</div>
+            <div class="bg-gray-50 border border-gray-200 rounded-lg p-3"><strong class="text-gray-600">viewer</strong><br>割当てられた案件のみ閲覧可能。</div>
+          </div>
+          <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-xs">
+            <i class="fas fa-shield-alt text-yellow-600 mr-1"></i><strong>管理者向け</strong>：ユーザーの追加・権限変更は <a href="/ui/admin" class="text-hm-600 underline">管理画面</a>（ナビの「管理」）で行えます。
+          </div>
+        </div>
+      </section>
 
       <!-- STEP 1 -->
       <section id="step1" class="bg-white rounded-xl border p-6 mb-5">
@@ -1213,16 +1587,28 @@ uiRoutes.get('/ui/manual', (c) => {
       </section>
 
       <!-- STEP 6 -->
-      <section id="step6" class="bg-white rounded-xl border p-6 mb-5">
-        <h2 class="text-lg font-bold text-gray-800 mb-3 flex items-center"><span class="bg-hm-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm mr-3 flex-shrink-0">6</span>売価を入力して粗利を確認する（「売価見積」タブ）</h2>
+      <section id="step6" class="bg-white rounded-xl border-2 border-yellow-300 p-6 mb-5">
+        <h2 class="text-lg font-bold text-gray-800 mb-3 flex items-center"><span class="bg-hm-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm mr-3 flex-shrink-0">6</span>売価見積もりとは（「売価見積」タブ）</h2>
         <div class="text-sm text-gray-600 space-y-3">
-          <div class="space-y-3">
-            <div class="flex items-start gap-3 bg-gray-50 rounded-lg p-3"><span class="bg-hm-600 text-white min-w-[28px] h-7 flex items-center justify-center rounded-lg text-xs font-bold flex-shrink-0">1</span><div>種別を選択（概算 / 社内 / 契約 / 実行）</div></div>
-            <div class="flex items-start gap-3 bg-gray-50 rounded-lg p-3"><span class="bg-hm-600 text-white min-w-[28px] h-7 flex items-center justify-center rounded-lg text-xs font-bold flex-shrink-0">2</span><div>「売価合計」に金額を入力（標準売価・太陽光売価も入力可）</div></div>
-            <div class="flex items-start gap-3 bg-gray-50 rounded-lg p-3"><span class="bg-hm-600 text-white min-w-[28px] h-7 flex items-center justify-center rounded-lg text-xs font-bold flex-shrink-0">3</span><div>「<strong>登録</strong>」ボタン → <strong>粗利率</strong>・<strong>乖離分析</strong>が自動表示</div></div>
+          <div class="bg-yellow-50 border border-yellow-300 rounded-lg p-4">
+            <h3 class="font-bold text-yellow-800 mb-2"><i class="fas fa-question-circle mr-1"></i>「売価」とは何か？</h3>
+            <p><strong>売価 = お客様に提示する販売価格（税抜）</strong>です。原価（工事にかかるコスト）に対して、会社の利益（粗利）を上乗せした金額です。</p>
+            <div class="grid grid-cols-3 gap-3 mt-3 text-center text-xs">
+              <div class="bg-white rounded-lg p-3 border"><i class="fas fa-hard-hat text-blue-500 text-xl mb-1"></i><br><strong>原価</strong><br>工事に実際にかかる費用<br><span class="text-gray-400">（自動計算済み）</span></div>
+              <div class="bg-white rounded-lg p-3 border"><i class="fas fa-plus text-gray-400 text-xl mb-1"></i><br><strong>粗利</strong><br>会社の利益分<br><span class="text-gray-400">（目標: 原価の30%）</span></div>
+              <div class="bg-white rounded-lg p-3 border border-yellow-400"><i class="fas fa-yen-sign text-yellow-600 text-xl mb-1"></i><br><strong>売価</strong><br>お客様提示価格<br><span class="text-yellow-600 font-bold">これを入力</span></div>
+            </div>
+            <p class="text-xs text-yellow-700 mt-3"><i class="fas fa-lightbulb mr-1"></i><strong>例</strong>: 原価 2,000万円、目標粗利率30% → 目標売価 = 2,000万 / (1-0.3) ≒ 2,857万円</p>
           </div>
-          <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-xs mt-2">
-            <i class="fas fa-chart-line text-yellow-500 mr-1"></i><strong>判定基準</strong>：粗利率30%が標準目標。20%未満は「注意」、10%未満は「NG」と自動判定。
+          <div class="space-y-3">
+            <div class="flex items-start gap-3 bg-gray-50 rounded-lg p-3"><span class="bg-hm-600 text-white min-w-[28px] h-7 flex items-center justify-center rounded-lg text-xs font-bold flex-shrink-0">1</span><div>種別を選択（概算 / 社内 / 契約 / 実行）— 見積フェーズに対応</div></div>
+            <div class="flex items-start gap-3 bg-gray-50 rounded-lg p-3"><span class="bg-hm-600 text-white min-w-[28px] h-7 flex items-center justify-center rounded-lg text-xs font-bold flex-shrink-0">2</span><div>「売価合計」に<strong>お客様に提示する金額</strong>を入力。標準売価・太陽光売価の内訳も入力可能</div></div>
+            <div class="flex items-start gap-3 bg-gray-50 rounded-lg p-3"><span class="bg-hm-600 text-white min-w-[28px] h-7 flex items-center justify-center rounded-lg text-xs font-bold flex-shrink-0">3</span><div>「<strong>登録</strong>」→ 自動で<strong>粗利率</strong>・<strong>乖離分析</strong>（原価との差）を表示。OK/注意/NGを判定</div></div>
+          </div>
+          <div class="grid grid-cols-3 gap-3 text-xs">
+            <div class="bg-green-50 border border-green-200 rounded-lg p-3 text-center"><span class="text-green-600 font-bold text-lg">OK</span><br>粗利率が目標範囲内</div>
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-center"><span class="text-yellow-600 font-bold text-lg">注意</span><br>粗利率が目標を10%以上下回る</div>
+            <div class="bg-red-50 border border-red-200 rounded-lg p-3 text-center"><span class="text-red-600 font-bold text-lg">NG</span><br>粗利率が目標を20%以上下回る or 赤字</div>
           </div>
         </div>
       </section>
@@ -1258,22 +1644,127 @@ uiRoutes.get('/ui/manual', (c) => {
         </div>
       </section>
 
+      <!-- STATUS TRANSITIONS -->
+      <section id="statuses" class="bg-white rounded-xl border-2 border-purple-300 p-6 mb-5">
+        <h2 class="text-lg font-bold text-gray-800 mb-3 flex items-center"><span class="bg-purple-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm mr-3 flex-shrink-0">9</span>ステータスの意味と遷移</h2>
+        <div class="text-sm text-gray-600 space-y-4">
+          <p>案件一覧の各カードに表示されるステータスは、案件の進行状況を示します。</p>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+            <div class="bg-gray-50 rounded-lg p-4 border-l-4 border-gray-400"><strong class="text-gray-700 text-sm">下書き (draft)</strong><br>案件を作成した直後の状態。建物情報を入力中。初期計算がまだ実行されていない。<br><span class="text-gray-400">→ 建物情報を入力して「初期計算」を実行すると次へ</span></div>
+            <div class="bg-blue-50 rounded-lg p-4 border-l-4 border-blue-500"><strong class="text-blue-700 text-sm">進行中 (in_progress)</strong><br>初期計算が完了し、工種明細の確認・修正作業中。業者見積の反映や個別修正を行う段階。<br><span class="text-gray-400">→ 修正完了後、「案件情報」タブでステータスを変更</span></div>
+            <div class="bg-yellow-50 rounded-lg p-4 border-l-4 border-yellow-500"><strong class="text-yellow-700 text-sm">要レビュー (needs_review)</strong><br>見積担当者が作業完了し、管理者のレビュー待ち。未解決の差分やフラグ項目があればここに留まる。<br><span class="text-gray-400">→ 管理者がレビュー後、「レビュー済」に変更</span></div>
+            <div class="bg-green-50 rounded-lg p-4 border-l-4 border-green-500"><strong class="text-green-700 text-sm">レビュー済 (reviewed)</strong><br>管理者のレビューが完了した状態。売価見積の登録・粗利確認が可能。お客様への提示準備完了。<br><span class="text-gray-400">→ 必要に応じてアーカイブ</span></div>
+          </div>
+          <div class="bg-purple-50 border border-purple-200 rounded-lg p-3 text-xs">
+            <i class="fas fa-arrows-alt-h text-purple-500 mr-1"></i><strong>ステータスの変更方法</strong>: 案件詳細の「<strong>案件情報</strong>」タブで、基本情報セクションの「ステータス」ドロップダウンから変更できます。変更は即座に保存されます。
+          </div>
+          <div class="bg-gray-50 rounded-lg p-4">
+            <h4 class="font-bold text-gray-700 text-sm mb-2">推奨フロー</h4>
+            <div class="flex items-center gap-2 text-xs flex-wrap">
+              <span class="bg-gray-200 text-gray-700 px-3 py-1.5 rounded-full font-medium">下書き</span>
+              <i class="fas fa-arrow-right text-gray-300"></i>
+              <span class="text-gray-400">初期計算</span>
+              <i class="fas fa-arrow-right text-gray-300"></i>
+              <span class="bg-blue-200 text-blue-700 px-3 py-1.5 rounded-full font-medium">進行中</span>
+              <i class="fas fa-arrow-right text-gray-300"></i>
+              <span class="text-gray-400">修正完了</span>
+              <i class="fas fa-arrow-right text-gray-300"></i>
+              <span class="bg-yellow-200 text-yellow-700 px-3 py-1.5 rounded-full font-medium">要レビュー</span>
+              <i class="fas fa-arrow-right text-gray-300"></i>
+              <span class="text-gray-400">管理者確認</span>
+              <i class="fas fa-arrow-right text-gray-300"></i>
+              <span class="bg-green-200 text-green-700 px-3 py-1.5 rounded-full font-medium">レビュー済</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- EACH TAB DETAILED GUIDE -->
+      <section id="tabs" class="bg-white rounded-xl border p-6 mb-5">
+        <h2 class="text-lg font-bold text-gray-800 mb-3 flex items-center"><span class="bg-hm-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm mr-3 flex-shrink-0">10</span>各タブの詳細ガイド</h2>
+        <div class="space-y-4 text-sm text-gray-600">
+          <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+            <h3 class="font-bold text-red-800 mb-2"><i class="fas fa-shield-alt mr-1"></i>リスクセンター</h3>
+            <p>案件全体の「健康診断」ダッシュボード。リスクレベル（LOW〜CRITICAL）、入力完了率、レビュー進捗、粗利率を一目で把握。<strong>赤い「要対応」</strong>項目から優先的に対処してください。</p>
+          </div>
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h3 class="font-bold text-blue-800 mb-2"><i class="fas fa-edit mr-1"></i>案件情報</h3>
+            <p>建物の基本情報・面積・仕様・所在地・太陽光・設備オプション・粗利率設定を入力するタブ。<strong>各項目は変更即保存</strong>（自動保存）。ここの入力が原価自動計算の精度を左右します。</p>
+            <p class="text-xs text-blue-600 mt-1">セクション: 基本情報 / 面積・寸法 / 所在地 / 太陽光・オプション / 設備・インフラ / 粗利率設定</p>
+          </div>
+          <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+            <h3 class="font-bold text-green-800 mb-2"><i class="fas fa-list-alt mr-1"></i>工種明細</h3>
+            <p>58工種の一覧。検索・フィルタで絞り込み、鉛筆アイコンで個別に数量・単価・金額を修正。元シートの「工種別タブ」に相当。<a href="#step4" class="text-green-600 underline">STEP 4を参照</a></p>
+          </div>
+          <div class="bg-orange-50 border border-orange-200 rounded-lg p-4">
+            <h3 class="font-bold text-orange-800 mb-2"><i class="fas fa-code-compare mr-1"></i>差分解決</h3>
+            <p><strong>仕様変更後の「再計算」で発生した差分</strong>を確認・処理するタブ。</p>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2 text-xs">
+              <div class="bg-white rounded p-2 border"><strong class="text-blue-700">新値採用</strong><br>再計算の新しい値を採用</div>
+              <div class="bg-white rounded p-2 border"><strong class="text-gray-700">旧値維持</strong><br>元の値をそのまま使う</div>
+              <div class="bg-white rounded p-2 border"><strong class="text-yellow-700">却下</strong><br>差分を無視</div>
+              <div class="bg-white rounded p-2 border"><strong class="text-orange-700">手動調整</strong><br>自分で金額を入力</div>
+            </div>
+            <p class="text-xs text-orange-600 mt-2"><i class="fas fa-lightbulb mr-1"></i>赤い「重要」バッジが付いた差分は大きな金額変動を含むため、優先的に確認してください。</p>
+          </div>
+          <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+            <h3 class="font-bold text-indigo-800 mb-2"><i class="fas fa-chart-pie mr-1"></i>原価サマリ</h3>
+            <p><strong>全工種の原価合計をカテゴリ別に集計</strong>した表。「自動合計」「手動調整」「最終合計」と各カテゴリの構成比（%）を確認できます。原価全体の内訳を把握するのに使います。</p>
+            <p class="text-xs text-indigo-600 mt-1">上部のカードで原価合計・標準原価・太陽光原価・オプション原価の4つを一目で確認。</p>
+          </div>
+          <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
+            <h3 class="font-bold text-purple-800 mb-2"><i class="fas fa-robot mr-1"></i>AI・警告</h3>
+            <p>AI条件チェック結果と、システムが検出した各種警告の管理画面。未読の警告はここで「既読」「解決」「無視」に変更。帳票テキスト読取（PDF文字起こし結果の反映）もここで実行。</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- MASTER ITEM MANAGEMENT -->
+      <section id="master" class="bg-white rounded-xl border-2 border-hm-400 p-6 mb-5">
+        <h2 class="text-lg font-bold text-gray-800 mb-3 flex items-center"><span class="bg-hm-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm mr-3 flex-shrink-0">11</span>単価マスタの変更方法</h2>
+        <div class="text-sm text-gray-600 space-y-3">
+          <p>基礎工事・上棟費・太陽光などの<strong>デフォルト単価</strong>は「<a href="/ui/admin" class="text-hm-600 underline">管理画面</a>」→「<strong>単価マスタ</strong>」タブで変更できます。</p>
+          <div class="space-y-2">
+            <div class="flex items-start gap-3 bg-gray-50 rounded-lg p-3">
+              <span class="bg-hm-600 text-white min-w-[28px] h-7 flex items-center justify-center rounded-lg text-xs font-bold flex-shrink-0">1</span>
+              <div>ナビバーの「<strong>管理</strong>」をクリック → 「<strong>単価マスタ</strong>」タブを選択</div></div>
+            <div class="flex items-start gap-3 bg-gray-50 rounded-lg p-3">
+              <span class="bg-hm-600 text-white min-w-[28px] h-7 flex items-center justify-center rounded-lg text-xs font-bold flex-shrink-0">2</span>
+              <div>カテゴリ選択や検索ボックスで変更したい工種を絞り込み</div></div>
+            <div class="flex items-start gap-3 bg-gray-50 rounded-lg p-3">
+              <span class="bg-hm-600 text-white min-w-[28px] h-7 flex items-center justify-center rounded-lg text-xs font-bold flex-shrink-0">3</span>
+              <div>鉛筆アイコンをクリック → 「デフォルト単価」「固定額」を変更して「保存」</div></div>
+          </div>
+          <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-xs">
+            <i class="fas fa-exclamation-triangle text-yellow-600 mr-1"></i><strong>注意</strong>：単価の変更は<strong>既存の案件には影響しません</strong>。既存案件に反映するには、案件の「再計算」を実行してください。新規案件は変更後の単価で自動計算されます。
+          </div>
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs">
+            <i class="fas fa-lock text-blue-500 mr-1"></i><strong>権限</strong>：単価マスタの変更は<strong>admin権限</strong>のユーザーのみ可能です。
+          </div>
+        </div>
+      </section>
+
       <!-- FAQ -->
       <section id="faq" class="bg-white rounded-xl border p-6 mb-5">
-        <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center"><span class="bg-hm-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm mr-3 flex-shrink-0">9</span>よくある質問（FAQ）</h2>
+        <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center"><span class="bg-hm-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm mr-3 flex-shrink-0">12</span>よくある質問（FAQ）</h2>
         <div class="space-y-4 text-sm">
           <div class="border-b pb-3"><h3 class="font-bold text-gray-800"><i class="fas fa-question-circle text-hm-500 mr-1"></i>Q. 元シートのように各工種を1つずつ見積もりたい</h3><p class="text-gray-600 mt-1"><strong>A.</strong> 「工種明細」タブで検索ボックスに工種名を入力 → 編集アイコンをクリック → 数量・単価・金額を変更。<a href="#step4" class="text-hm-600 underline">詳しくはSTEP 4</a></p></div>
           <div class="border-b pb-3"><h3 class="font-bold text-gray-800"><i class="fas fa-question-circle text-hm-500 mr-1"></i>Q. 業者からの見積書を反映したい</h3><p class="text-gray-600 mt-1"><strong>A.</strong> 「工種明細」で該当工種を開き、「手修正 金額」に業者見積額を入力。変更理由で「業者見積」を選択して保存。</p></div>
           <div class="border-b pb-3"><h3 class="font-bold text-gray-800"><i class="fas fa-question-circle text-hm-500 mr-1"></i>Q. 自動計算された金額が実際と違う</h3><p class="text-gray-600 mt-1"><strong>A.</strong> まず「案件情報」タブで建物情報（坪数・面積等）が正しいか確認。正しい場合は工種明細で手動修正できます。</p></div>
           <div class="border-b pb-3"><h3 class="font-bold text-gray-800"><i class="fas fa-question-circle text-hm-500 mr-1"></i>Q. 仕様を変更したら原価はどうなる？</h3><p class="text-gray-600 mt-1"><strong>A.</strong> 「案件情報」で仕様を変更 → 「再計算」ボタン → 変更差分が「差分解決」タブに表示。手動修正した工種は保持されます。</p></div>
           <div class="border-b pb-3"><h3 class="font-bold text-gray-800"><i class="fas fa-question-circle text-hm-500 mr-1"></i>Q. 「初期計算」ボタンが見当たらない</h3><p class="text-gray-600 mt-1"><strong>A.</strong> 計算実行後は「再計算」ボタンに変わります。案件詳細ページの上部ヘッダー右側にあります。</p></div>
-          <div><h3 class="font-bold text-gray-800"><i class="fas fa-question-circle text-hm-500 mr-1"></i>Q. 粗利率の目標値を変えたい</h3><p class="text-gray-600 mt-1"><strong>A.</strong> 「案件情報」タブの下部「粗利率設定」セクションで案件ごとの目標粗利率を設定できます。</p></div>
+          <div class="border-b pb-3"><h3 class="font-bold text-gray-800"><i class="fas fa-question-circle text-hm-500 mr-1"></i>Q. 粗利率の目標値を変えたい</h3><p class="text-gray-600 mt-1"><strong>A.</strong> 「案件情報」タブの下部「粗利率設定」セクションで案件ごとの目標粗利率を設定できます。</p></div>
+          <div class="border-b pb-3"><h3 class="font-bold text-gray-800"><i class="fas fa-question-circle text-hm-500 mr-1"></i>Q. 「売価」って何？原価の販売価格のこと？</h3><p class="text-gray-600 mt-1"><strong>A.</strong> 売価 = お客様に提示する建物全体の価格です。原価（工事コスト）+ 粗利（会社利益）= 売価。原価とは別物です。<a href="#step6" class="text-hm-600 underline">詳しくはSTEP 6</a></p></div>
+          <div class="border-b pb-3"><h3 class="font-bold text-gray-800"><i class="fas fa-question-circle text-hm-500 mr-1"></i>Q. 単価のデフォルト値を変えたい</h3><p class="text-gray-600 mt-1"><strong>A.</strong> ナビの「管理」→「単価マスタ」タブで変更可能です（admin権限が必要）。<a href="#master" class="text-hm-600 underline">詳しくはセクション11</a></p></div>
+          <div class="border-b pb-3"><h3 class="font-bold text-gray-800"><i class="fas fa-question-circle text-hm-500 mr-1"></i>Q. 案件のステータスがよくわからない</h3><p class="text-gray-600 mt-1"><strong>A.</strong> 下書き→進行中→要レビュー→レビュー済の順に進みます。「案件情報」タブで手動変更可能。<a href="#statuses" class="text-hm-600 underline">詳しくはセクション9</a></p></div>
+          <div class="border-b pb-3"><h3 class="font-bold text-gray-800"><i class="fas fa-question-circle text-hm-500 mr-1"></i>Q. 「差分解決」って何？</h3><p class="text-gray-600 mt-1"><strong>A.</strong> 仕様変更後の「再計算」で生じた金額変動のこと。新値を採用するか、旧値を維持するか選べます。<a href="#tabs" class="text-hm-600 underline">詳しくはセクション10</a></p></div>
+          <div><h3 class="font-bold text-gray-800"><i class="fas fa-question-circle text-hm-500 mr-1"></i>Q. 他の人の案件が見えない</h3><p class="text-gray-600 mt-1"><strong>A.</strong> estimator権限のユーザーは自分が作成した案件のみ表示されます。全案件を見るにはmanager以上の権限が必要です。管理者にお問い合わせください。</p></div>
         </div>
       </section>
 
       <!-- Terms -->
       <section id="terms" class="bg-white rounded-xl border p-6 mb-8">
-        <h2 class="text-lg font-bold text-gray-800 mb-3 flex items-center"><span class="bg-hm-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm mr-3 flex-shrink-0">10</span>用語集</h2>
+        <h2 class="text-lg font-bold text-gray-800 mb-3 flex items-center"><span class="bg-hm-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm mr-3 flex-shrink-0">13</span>用語集</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
           <div class="bg-gray-50 rounded-lg p-3"><strong>スナップショット</strong><br><span class="text-gray-500">ある時点の原価計算結果のコピー。再計算のたびに新しいスナップショットが作られます。</span></div>
           <div class="bg-gray-50 rounded-lg p-3"><strong>工種</strong><br><span class="text-gray-500">建築の各作業区分（基礎工事、上棟費等）。現在58工種がマスタ登録済み。</span></div>
@@ -1281,6 +1772,9 @@ uiRoutes.get('/ui/manual', (c) => {
           <div class="bg-gray-50 rounded-lg p-3"><strong>ギャップ（乖離）</strong><br><span class="text-gray-500">期待粗利率と実際の粗利率の差。正値=マージン不足。</span></div>
           <div class="bg-gray-50 rounded-lg p-3"><strong>ラインナップ</strong><br><span class="text-gray-500">平松建築の商品シリーズ。SHIN / RIN / MOKU（大屋根・平屋・ROKU）の5種類。</span></div>
           <div class="bg-gray-50 rounded-lg p-3"><strong>リスクスコア</strong><br><span class="text-gray-500">案件の問題度。エラーx10、警告x3、情報x1で加算。</span></div>
+          <div class="bg-gray-50 rounded-lg p-3"><strong>売価</strong><br><span class="text-gray-500">お客様に提示する販売価格（税抜）。原価+粗利=売価。</span></div>
+          <div class="bg-gray-50 rounded-lg p-3"><strong>原価サマリ</strong><br><span class="text-gray-500">全工種の原価合計をカテゴリ別に集計した一覧。</span></div>
+          <div class="bg-gray-50 rounded-lg p-3"><strong>差分解決</strong><br><span class="text-gray-500">再計算で生じた金額変動を確認し、採用/維持/調整を選ぶ作業。</span></div>
         </div>
       </section>
 

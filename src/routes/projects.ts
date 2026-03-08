@@ -39,32 +39,46 @@ const CreateProjectSchema = z.object({
 // --------------------------------------------------
 projectRoutes.get('/', async (c) => {
   const db = c.env.DB;
+  const user = c.get('currentUser')!;
   const status = c.req.query('status');
   const page = parseInt(c.req.query('page') || '1');
   const perPage = Math.min(parseInt(c.req.query('per_page') || '20'), 100);
   const offset = (page - 1) * perPage;
 
+  // Access control: admin/manager see all, estimator/viewer see only own projects
+  const isAdmin = user.role === 'admin' || user.role === 'manager';
+
   let countSql = 'SELECT COUNT(*) as total FROM projects WHERE 1=1';
   let sql = `
-    SELECT id, project_code, project_name, customer_name,
-           lineup, status, tsubo, building_area_m2, total_floor_area_m2,
-           current_snapshot_id, revision_no, assigned_to, 
-           created_at, updated_at
-    FROM projects WHERE 1=1
+    SELECT p.id, p.project_code, p.project_name, p.customer_name,
+           p.lineup, p.status, p.tsubo, p.building_area_m2, p.total_floor_area_m2,
+           p.current_snapshot_id, p.revision_no, p.assigned_to, 
+           p.created_at, p.updated_at,
+           u.name as assigned_to_name
+    FROM projects p
+    LEFT JOIN app_users u ON u.id = p.assigned_to
+    WHERE 1=1
   `;
   const binds: any[] = [];
 
+  if (!isAdmin) {
+    countSql += ' AND assigned_to = ?';
+    sql += ' AND p.assigned_to = ?';
+    binds.push(user.id);
+  }
+
   if (status) {
     countSql += ' AND status = ?';
-    sql += ' AND status = ?';
+    sql += ' AND p.status = ?';
     binds.push(status);
   }
 
-  sql += ' ORDER BY updated_at DESC LIMIT ? OFFSET ?';
+  sql += ' ORDER BY p.updated_at DESC LIMIT ? OFFSET ?';
 
-  // Count total
-  const countStmt = binds.length > 0
-    ? db.prepare(countSql).bind(...binds)
+  // Count total (need to handle non-admin filter for count too)
+  const countBinds = binds.slice(0, isAdmin ? (status ? 1 : 0) : (status ? 2 : 1));
+  const countStmt = countBinds.length > 0
+    ? db.prepare(countSql).bind(...countBinds)
     : db.prepare(countSql);
   const totalResult = await countStmt.first() as any;
 

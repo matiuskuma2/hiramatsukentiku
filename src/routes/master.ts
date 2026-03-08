@@ -299,6 +299,61 @@ masterRoutes.patch('/system-settings/:key', requireRole('admin', 'manager'), asy
 });
 
 // --------------------------------------------------
+// PATCH /api/master/items/:id
+// 権限: admin
+// Update base_unit_price, base_fixed_amount, unit, vendor_name, note
+// --------------------------------------------------
+masterRoutes.patch('/items/:id', requireRole('admin'), async (c) => {
+  const db = c.env.DB;
+  const user = c.get('currentUser')!;
+  const id = c.req.param('id');
+
+  let body: any;
+  try { body = await c.req.json(); } catch { return c.json({ success: false, error: 'Invalid JSON body' }, 400); }
+
+  const item = await db.prepare('SELECT * FROM cost_master_items WHERE id = ?').bind(id).first() as any;
+  if (!item) return c.json({ success: false, error: `Item not found: ${id}` }, 404);
+
+  const setClauses: string[] = [];
+  const values: any[] = [];
+  const changes: Record<string, { old: any; new: any }> = {};
+
+  if (body.base_unit_price !== undefined) {
+    setClauses.push('base_unit_price = ?'); values.push(body.base_unit_price);
+    changes.base_unit_price = { old: item.base_unit_price, new: body.base_unit_price };
+  }
+  if (body.base_fixed_amount !== undefined) {
+    setClauses.push('base_fixed_amount = ?'); values.push(body.base_fixed_amount);
+    changes.base_fixed_amount = { old: item.base_fixed_amount, new: body.base_fixed_amount };
+  }
+  if (body.unit !== undefined) { setClauses.push('unit = ?'); values.push(body.unit || null); }
+  if (body.vendor_name !== undefined) { setClauses.push('vendor_name = ?'); values.push(body.vendor_name || null); }
+  if (body.note !== undefined) { setClauses.push('note = ?'); values.push(body.note || null); }
+
+  if (setClauses.length === 0) {
+    return c.json({ success: false, error: 'No fields to update' }, 400);
+  }
+
+  setClauses.push("updated_at = datetime('now')");
+  values.push(id);
+
+  await db.prepare(`UPDATE cost_master_items SET ${setClauses.join(', ')} WHERE id = ?`).bind(...values).run();
+
+  // Log the change
+  if (Object.keys(changes).length > 0) {
+    try {
+      await db.prepare(`
+        INSERT INTO master_change_logs (target_table, target_id, change_type, field_name, before_value, after_value, reason, changed_by, changed_at)
+        VALUES ('cost_master_items', ?, 'price_change', ?, ?, ?, '管理画面から変更', ?, datetime('now'))
+      `).bind(id, Object.keys(changes).join(','), JSON.stringify(changes), JSON.stringify(body), user.id).run();
+    } catch {}
+  }
+
+  const updated = await db.prepare('SELECT * FROM cost_master_items WHERE id = ?').bind(id).first();
+  return c.json({ success: true, data: updated, message: '単価を更新しました' });
+});
+
+// --------------------------------------------------
 // GET /api/master/users
 // 権限: admin
 // --------------------------------------------------

@@ -9,6 +9,7 @@ import salesEstimateRoutes from './routes/salesEstimates';
 import riskCentreRoutes from './routes/riskCentre';
 import aiRoutes from './routes/ai';
 import uiRoutes from './routes/ui';
+import adminRoutes from './routes/admin';
 
 type Bindings = {
   DB: D1Database;
@@ -30,6 +31,7 @@ app.route('/api/projects', salesEstimateRoutes);
 app.route('/api/projects', riskCentreRoutes);
 app.route('/api/ai', aiRoutes);
 // AI warnings routes are nested under /api/ai/warnings/* (defined in ai.ts)
+app.route('/api', adminRoutes);
 app.route('/', uiRoutes);
 
 // === Health Check ===
@@ -37,8 +39,8 @@ app.get('/api/health', (c) => {
   return c.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    version: '0.8.1',
-    phase: 'step-8-cr03-cr05-deploy-prep',
+    version: '0.9.0',
+    phase: 'step-9-admin-auth-manual',
   });
 });
 
