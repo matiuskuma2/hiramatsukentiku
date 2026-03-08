@@ -121,6 +121,10 @@ export const TargetSummaryGroup = z.enum(['total', 'standard', 'solar', 'option'
 
 // === 手修正理由カテゴリ (CR-02 / CR-07 / 16_UX_RISK_PREVENTION_DESIGN) ===
 // NOTE: DB の CHECK 制約は ALTER TABLE ADD COLUMN では追加不可のため、Zod で enforce
+// TODO [最終DDL]: 正式ベースmigration時の整理:
+//   - 初回 CREATE TABLE: CHECK 付き (override_reason_category IN (...))
+//   - 途中 ALTER TABLE: Zod で補完（現在の方式）
+//   See: migrations/0002_cr01_cr02_tables_and_columns.sql
 export const OverrideReasonCategory = z.enum([
   'site_condition', 'customer_request', 'regulatory', 'spec_change',
   'price_update', 'correction', 'vendor_quote', 'other'

@@ -71,6 +71,13 @@ CREATE INDEX idx_log_display ON lineup_option_groups(lineup, display_order);
 -- NOTE: SQLite ALTER TABLE ADD COLUMN does not support inline CHECK constraints.
 -- CHECK constraint will be enforced at application layer (Zod validation).
 -- The column is nullable by default.
+--
+-- TODO [最終DDL]: 正式ベースmigration時は以下の整理を行うこと:
+--   1. 初回CREATE TABLE時: override_reason_category にCHECK制約を付与
+--      CHECK (override_reason_category IN ('site_condition','customer_request',
+--        'regulatory','spec_change','price_update','correction','vendor_quote','other'))
+--   2. 途中ALTER TABLE時: Zodバリデーションで補完（現在の方式を維持）
+--   See: src/schemas/enums.ts OverrideReasonCategory
 ALTER TABLE project_cost_items ADD COLUMN override_reason_category TEXT;
 
 -- ============================================================

@@ -256,3 +256,7 @@ CONDITIONAL items:  0
 1. **Step 1 は GO 判定**
 2. **ただし CR-01 / CR-02 / CR-04 を初日対応**（後ろ倒し不可）
 3. **Queue は本番相当テスト完了まで暫定扱い**（PASS_LOCAL のまま完了扱いにしない）
+
+### 残 TODO（Step 1 中に対応）
+
+- **DDL 整理**: `override_reason_category` は現在 ALTER TABLE + Zod enforce。最終正式 DDL（新規 migration 統合時）では初回 CREATE TABLE に CHECK 制約を含める。途中 ALTER では Zod 補完を許容する。

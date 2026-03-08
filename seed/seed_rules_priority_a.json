@@ -1,0 +1,596 @@
+[
+  {
+    "_section": "=== foundation rules (6) ===",
+    "id": "rule_foundation_lt60",
+    "master_item_id": "item_foundation_lt60",
+    "rule_group": "selection",
+    "priority": 100,
+    "conditions": [
+      {"field": "building_area_m2", "operator": "<", "value": 60}
+    ],
+    "actions": [
+      {"type": "select"},
+      {"type": "set_reference_field", "value": "building_area_m2"}
+    ]
+  },
+  {
+    "id": "rule_foundation_60_90",
+    "master_item_id": "item_foundation_60_90",
+    "rule_group": "selection",
+    "priority": 100,
+    "conditions": [
+      {"field": "building_area_m2", "operator": "between", "value": [60, 90]}
+    ],
+    "actions": [
+      {"type": "select"},
+      {"type": "set_reference_field", "value": "building_area_m2"}
+    ]
+  },
+  {
+    "id": "rule_foundation_gte90",
+    "master_item_id": "item_foundation_gte90",
+    "rule_group": "selection",
+    "priority": 100,
+    "conditions": [
+      {"field": "building_area_m2", "operator": ">=", "value": 90}
+    ],
+    "actions": [
+      {"type": "select"},
+      {"type": "set_reference_field", "value": "building_area_m2"}
+    ]
+  },
+  {
+    "id": "rule_foundation_deep_warn",
+    "master_item_id": "item_foundation_deep",
+    "rule_group": "warning",
+    "priority": 200,
+    "conditions": [],
+    "actions": [
+      {"type": "show_warning", "value": "深基礎の要否を確認してください（H150以内）"}
+    ]
+  },
+  {
+    "id": "rule_foundation_small_truck_warn",
+    "master_item_id": "item_foundation_small_truck",
+    "rule_group": "warning",
+    "priority": 200,
+    "conditions": [],
+    "actions": [
+      {"type": "show_warning", "value": "小型車指定の要否を確認してください"}
+    ]
+  },
+  {
+    "id": "rule_foundation_soil_warn",
+    "master_item_id": "item_foundation_soil_disposal",
+    "rule_group": "warning",
+    "priority": 200,
+    "conditions": [],
+    "actions": [
+      {"type": "show_warning", "value": "残土処分の要否・数量を現地確認で決定してください"}
+    ]
+  },
+
+  {
+    "_section": "=== carpentry rules (8) - B-01: lineup underscore fixed ===",
+    "id": "rule_carpentry_moku_oyane",
+    "master_item_id": "item_carpentry_moku_oyane",
+    "rule_group": "selection",
+    "priority": 100,
+    "conditions": [
+      {"field": "lineup", "operator": "=", "value": "MOKU_OOYANE"}
+    ],
+    "actions": [
+      {"type": "select"},
+      {"type": "set_fixed_amount", "value": 2100000}
+    ]
+  },
+  {
+    "id": "rule_carpentry_moku_hiraya",
+    "master_item_id": "item_carpentry_moku_hiraya",
+    "rule_group": "selection",
+    "priority": 100,
+    "conditions": [
+      {"field": "lineup", "operator": "=", "value": "MOKU_HIRAYA"}
+    ],
+    "actions": [
+      {"type": "select"},
+      {"type": "set_fixed_amount", "value": 2200000}
+    ]
+  },
+  {
+    "id": "rule_carpentry_moku_roku",
+    "master_item_id": "item_carpentry_moku_roku",
+    "rule_group": "selection",
+    "priority": 100,
+    "conditions": [
+      {"field": "lineup", "operator": "=", "value": "MOKU_ROKU"}
+    ],
+    "actions": [
+      {"type": "select"},
+      {"type": "set_fixed_amount", "value": 1600000}
+    ]
+  },
+  {
+    "id": "rule_carpentry_shin_labor",
+    "master_item_id": "item_carpentry_shin_labor",
+    "rule_group": "calculation",
+    "priority": 100,
+    "conditions": [
+      {"field": "lineup", "operator": "in", "value": ["SHIN", "RIN"]}
+    ],
+    "actions": [
+      {"type": "select"}
+    ]
+  },
+  {
+    "id": "rule_carpentry_shin_labor_qty_lt30",
+    "master_item_id": "item_carpentry_shin_labor",
+    "rule_group": "calculation",
+    "priority": 110,
+    "conditions": [
+      {"field": "lineup", "operator": "in", "value": ["SHIN", "RIN"]},
+      {"field": "tsubo", "operator": "<", "value": 30}
+    ],
+    "actions": [
+      {"type": "set_quantity", "value": 50}
+    ]
+  },
+  {
+    "id": "rule_carpentry_shin_labor_qty_30_40",
+    "master_item_id": "item_carpentry_shin_labor",
+    "rule_group": "calculation",
+    "priority": 110,
+    "conditions": [
+      {"field": "lineup", "operator": "in", "value": ["SHIN", "RIN"]},
+      {"field": "tsubo", "operator": "between", "value": [30, 40]}
+    ],
+    "actions": [
+      {"type": "set_quantity", "value": 55}
+    ]
+  },
+  {
+    "id": "rule_carpentry_shin_labor_qty_40_50",
+    "master_item_id": "item_carpentry_shin_labor",
+    "rule_group": "calculation",
+    "priority": 110,
+    "conditions": [
+      {"field": "lineup", "operator": "in", "value": ["SHIN", "RIN"]},
+      {"field": "tsubo", "operator": "between", "value": [40, 50]}
+    ],
+    "actions": [
+      {"type": "set_quantity", "value": 60}
+    ]
+  },
+  {
+    "id": "rule_carpentry_shin_labor_qty_50_60",
+    "master_item_id": "item_carpentry_shin_labor",
+    "rule_group": "calculation",
+    "priority": 110,
+    "conditions": [
+      {"field": "lineup", "operator": "in", "value": ["SHIN", "RIN"]},
+      {"field": "tsubo", "operator": "between", "value": [50, 60]}
+    ],
+    "actions": [
+      {"type": "set_quantity", "value": 65}
+    ]
+  },
+  {
+    "id": "rule_carpentry_shin_labor_qty_60_70",
+    "master_item_id": "item_carpentry_shin_labor",
+    "rule_group": "calculation",
+    "priority": 110,
+    "conditions": [
+      {"field": "lineup", "operator": "in", "value": ["SHIN", "RIN"]},
+      {"field": "tsubo", "operator": "between", "value": [60, 70]}
+    ],
+    "actions": [
+      {"type": "set_quantity", "value": 70}
+    ]
+  },
+  {
+    "id": "rule_carpentry_shin_labor_qty_gte70",
+    "master_item_id": "item_carpentry_shin_labor",
+    "rule_group": "calculation",
+    "priority": 110,
+    "conditions": [
+      {"field": "lineup", "operator": "in", "value": ["SHIN", "RIN"]},
+      {"field": "tsubo", "operator": ">=", "value": 70}
+    ],
+    "actions": [
+      {"type": "flag_manual_confirmation"},
+      {"type": "show_warning", "value": "70坪以上は大工人工を要確認"}
+    ]
+  },
+  {
+    "id": "rule_carpentry_shin_erection",
+    "master_item_id": "item_carpentry_shin_erection",
+    "rule_group": "calculation",
+    "priority": 100,
+    "conditions": [
+      {"field": "lineup", "operator": "in", "value": ["SHIN", "RIN"]}
+    ],
+    "actions": [
+      {"type": "select"}
+    ]
+  },
+  {
+    "id": "rule_carpentry_shin_erection_lt25",
+    "master_item_id": "item_carpentry_shin_erection",
+    "rule_group": "calculation",
+    "priority": 110,
+    "conditions": [
+      {"field": "lineup", "operator": "in", "value": ["SHIN", "RIN"]},
+      {"field": "tsubo", "operator": "<", "value": 25}
+    ],
+    "actions": [
+      {"type": "set_fixed_amount", "value": 240000}
+    ]
+  },
+  {
+    "id": "rule_carpentry_shin_erection_25_35",
+    "master_item_id": "item_carpentry_shin_erection",
+    "rule_group": "calculation",
+    "priority": 110,
+    "conditions": [
+      {"field": "lineup", "operator": "in", "value": ["SHIN", "RIN"]},
+      {"field": "tsubo", "operator": "between", "value": [25, 35]}
+    ],
+    "actions": [
+      {"type": "set_fixed_amount", "value": 340000}
+    ]
+  },
+  {
+    "id": "rule_carpentry_shin_erection_gte35",
+    "master_item_id": "item_carpentry_shin_erection",
+    "rule_group": "calculation",
+    "priority": 110,
+    "conditions": [
+      {"field": "lineup", "operator": "in", "value": ["SHIN", "RIN"]},
+      {"field": "tsubo", "operator": ">=", "value": 35}
+    ],
+    "actions": [
+      {"type": "set_fixed_amount", "value": 400000}
+    ]
+  },
+  {
+    "id": "rule_carpentry_yakisugi",
+    "master_item_id": "item_carpentry_yakisugi",
+    "rule_group": "selection",
+    "priority": 100,
+    "conditions": [
+      {"field": "has_yakisugi", "operator": "=", "value": true}
+    ],
+    "actions": [
+      {"type": "select"}
+    ]
+  },
+
+  {
+    "_section": "=== insulation rules (4) ===",
+    "id": "rule_insulation_eq5",
+    "master_item_id": "item_insulation_eq5_roof_100",
+    "rule_group": "selection",
+    "priority": 100,
+    "conditions": [
+      {"field": "insulation_grade", "operator": "=", "value": "5"}
+    ],
+    "actions": [
+      {"type": "select"}
+    ]
+  },
+  {
+    "id": "rule_insulation_eq5_floor",
+    "master_item_id": "item_insulation_eq5_floor_80",
+    "rule_group": "selection",
+    "priority": 100,
+    "conditions": [
+      {"field": "insulation_grade", "operator": "=", "value": "5"}
+    ],
+    "actions": [
+      {"type": "select"}
+    ]
+  },
+  {
+    "id": "rule_insulation_eq6_roof100",
+    "master_item_id": "item_insulation_eq6_roof_100",
+    "rule_group": "selection",
+    "priority": 100,
+    "conditions": [
+      {"field": "insulation_grade", "operator": "=", "value": "6"}
+    ],
+    "actions": [
+      {"type": "select"}
+    ]
+  },
+  {
+    "id": "rule_insulation_eq6_roof45",
+    "master_item_id": "item_insulation_eq6_roof_45",
+    "rule_group": "selection",
+    "priority": 100,
+    "conditions": [
+      {"field": "insulation_grade", "operator": "=", "value": "6"}
+    ],
+    "actions": [
+      {"type": "select"}
+    ]
+  },
+  {
+    "id": "rule_insulation_eq6_floor",
+    "master_item_id": "item_insulation_eq6_floor_90",
+    "rule_group": "selection",
+    "priority": 100,
+    "conditions": [
+      {"field": "insulation_grade", "operator": "=", "value": "6"}
+    ],
+    "actions": [
+      {"type": "select"}
+    ]
+  },
+
+  {
+    "_section": "=== shinkabe_panel rules (3) - B-02: panel_shipping fixed ===",
+    "id": "rule_panel_eq5_outer",
+    "master_item_id": "item_panel_eq5_outer",
+    "rule_group": "selection",
+    "priority": 100,
+    "conditions": [
+      {"field": "insulation_grade", "operator": "=", "value": "5"}
+    ],
+    "actions": [
+      {"type": "select"}
+    ]
+  },
+  {
+    "id": "rule_panel_eq6_outer",
+    "master_item_id": "item_panel_eq6_outer",
+    "rule_group": "selection",
+    "priority": 100,
+    "conditions": [
+      {"field": "insulation_grade", "operator": "=", "value": "6"}
+    ],
+    "actions": [
+      {"type": "select"}
+    ]
+  },
+  {
+    "_comment": "B-02: set_quantity:2 removed, set_fixed_amount:60000 maintained",
+    "id": "rule_panel_shipping",
+    "master_item_id": "item_panel_shipping",
+    "rule_group": "selection",
+    "priority": 100,
+    "conditions": [],
+    "actions": [
+      {"type": "select"},
+      {"type": "set_fixed_amount", "value": 60000}
+    ]
+  },
+
+  {
+    "_section": "=== electrical_facility rules (2) ===",
+    "id": "rule_elec_rin_extra",
+    "master_item_id": "item_elec_rin_extra",
+    "rule_group": "selection",
+    "priority": 100,
+    "conditions": [
+      {"field": "lineup", "operator": "=", "value": "RIN"}
+    ],
+    "actions": [
+      {"type": "select"}
+    ]
+  },
+  {
+    "id": "rule_elec_tsusen_warn",
+    "master_item_id": "item_elec_tsusen",
+    "rule_group": "warning",
+    "priority": 200,
+    "conditions": [],
+    "actions": [
+      {"type": "show_warning", "value": "通線口の数量を図面から確認してください"}
+    ]
+  },
+
+  {
+    "_section": "=== defect_insurance rules (8) ===",
+    "id": "rule_defect_ins_lt100",
+    "master_item_id": "item_defect_ins_lt100",
+    "rule_group": "selection",
+    "priority": 100,
+    "conditions": [
+      {"field": "total_floor_area_m2", "operator": "<", "value": 100}
+    ],
+    "actions": [
+      {"type": "select"}
+    ]
+  },
+  {
+    "id": "rule_defect_ins_100_125",
+    "master_item_id": "item_defect_ins_100_125",
+    "rule_group": "selection",
+    "priority": 100,
+    "conditions": [
+      {"field": "total_floor_area_m2", "operator": "between", "value": [100, 125]}
+    ],
+    "actions": [
+      {"type": "select"}
+    ]
+  },
+  {
+    "id": "rule_defect_ins_125_150",
+    "master_item_id": "item_defect_ins_125_150",
+    "rule_group": "selection",
+    "priority": 100,
+    "conditions": [
+      {"field": "total_floor_area_m2", "operator": "between", "value": [125, 150]}
+    ],
+    "actions": [
+      {"type": "select"}
+    ]
+  },
+  {
+    "id": "rule_defect_ins_gte150",
+    "master_item_id": "item_defect_ins_gte150",
+    "rule_group": "selection",
+    "priority": 100,
+    "conditions": [
+      {"field": "total_floor_area_m2", "operator": ">=", "value": 150}
+    ],
+    "actions": [
+      {"type": "select"}
+    ]
+  },
+  {
+    "id": "rule_defect_insp_lt100",
+    "master_item_id": "item_defect_insp_lt100",
+    "rule_group": "selection",
+    "priority": 100,
+    "conditions": [
+      {"field": "total_floor_area_m2", "operator": "<", "value": 100}
+    ],
+    "actions": [
+      {"type": "select"}
+    ]
+  },
+  {
+    "id": "rule_defect_insp_100_125",
+    "master_item_id": "item_defect_insp_100_125",
+    "rule_group": "selection",
+    "priority": 100,
+    "conditions": [
+      {"field": "total_floor_area_m2", "operator": "between", "value": [100, 125]}
+    ],
+    "actions": [
+      {"type": "select"}
+    ]
+  },
+  {
+    "id": "rule_defect_insp_125_150",
+    "master_item_id": "item_defect_insp_125_150",
+    "rule_group": "selection",
+    "priority": 100,
+    "conditions": [
+      {"field": "total_floor_area_m2", "operator": "between", "value": [125, 150]}
+    ],
+    "actions": [
+      {"type": "select"}
+    ]
+  },
+  {
+    "id": "rule_defect_insp_gte150",
+    "master_item_id": "item_defect_insp_gte150",
+    "rule_group": "selection",
+    "priority": 100,
+    "conditions": [
+      {"field": "total_floor_area_m2", "operator": ">=", "value": 150}
+    ],
+    "actions": [
+      {"type": "select"}
+    ]
+  },
+
+  {
+    "_section": "=== cleaning rules (1) ===",
+    "id": "rule_clean_area_extra",
+    "master_item_id": "item_clean_area_extra",
+    "rule_group": "selection",
+    "priority": 100,
+    "conditions": [
+      {"field": "is_cleaning_area_standard", "operator": "=", "value": false}
+    ],
+    "actions": [
+      {"type": "select"}
+    ]
+  },
+
+  {
+    "_section": "=== waste_box rules (7) ===",
+    "id": "rule_waste_in_mix_4m3",
+    "master_item_id": "item_waste_in_mix_4m3",
+    "rule_group": "selection",
+    "priority": 100,
+    "conditions": [
+      {"field": "is_shizuoka_prefecture", "operator": "=", "value": true}
+    ],
+    "actions": [
+      {"type": "select"},
+      {"type": "set_quantity", "value": 3}
+    ]
+  },
+  {
+    "id": "rule_waste_in_mix_2m3",
+    "master_item_id": "item_waste_in_mix_2m3",
+    "rule_group": "selection",
+    "priority": 100,
+    "conditions": [
+      {"field": "is_shizuoka_prefecture", "operator": "=", "value": true}
+    ],
+    "actions": [
+      {"type": "select"},
+      {"type": "set_quantity", "value": 1}
+    ]
+  },
+  {
+    "id": "rule_waste_in_board_2m3",
+    "master_item_id": "item_waste_in_board_2m3",
+    "rule_group": "selection",
+    "priority": 100,
+    "conditions": [
+      {"field": "is_shizuoka_prefecture", "operator": "=", "value": true}
+    ],
+    "actions": [
+      {"type": "select"},
+      {"type": "set_quantity", "value": 1}
+    ]
+  },
+  {
+    "id": "rule_waste_in_manifest",
+    "master_item_id": "item_waste_in_manifest",
+    "rule_group": "selection",
+    "priority": 100,
+    "conditions": [
+      {"field": "is_shizuoka_prefecture", "operator": "=", "value": true}
+    ],
+    "actions": [
+      {"type": "select"},
+      {"type": "set_quantity", "value": 5}
+    ]
+  },
+  {
+    "id": "rule_waste_out_mix_3_5m3",
+    "master_item_id": "item_waste_out_mix_3_5m3",
+    "rule_group": "selection",
+    "priority": 100,
+    "conditions": [
+      {"field": "is_shizuoka_prefecture", "operator": "=", "value": false}
+    ],
+    "actions": [
+      {"type": "select"},
+      {"type": "set_quantity", "value": 4}
+    ]
+  },
+  {
+    "id": "rule_waste_out_mix_2m3",
+    "master_item_id": "item_waste_out_mix_2m3",
+    "rule_group": "selection",
+    "priority": 100,
+    "conditions": [
+      {"field": "is_shizuoka_prefecture", "operator": "=", "value": false}
+    ],
+    "actions": [
+      {"type": "select"},
+      {"type": "set_quantity", "value": 1}
+    ]
+  },
+  {
+    "id": "rule_waste_out_board_2m3",
+    "master_item_id": "item_waste_out_board_2m3",
+    "rule_group": "selection",
+    "priority": 100,
+    "conditions": [
+      {"field": "is_shizuoka_prefecture", "operator": "=", "value": false}
+    ],
+    "actions": [
+      {"type": "select"},
+      {"type": "set_quantity", "value": 1}
+    ]
+  }
+]
