@@ -165,4 +165,133 @@ projectRoutes.post('/', requireRole('admin', 'manager', 'estimator'), async (c) 
   } satisfies ApiResponse, 201);
 });
 
+// --------------------------------------------------
+// PATCH /api/projects/:id  (CR-05: Project Edit)
+// 権限: admin, manager, estimator
+// Supports inline edit of all project fields
+// --------------------------------------------------
+const UpdateProjectSchema = z.object({
+  project_name: z.string().min(1).max(200).optional(),
+  customer_name: z.string().max(200).nullable().optional(),
+  lineup: Lineup.optional(),
+  status: ProjectStatus.optional(),
+  tsubo: z.number().positive().nullable().optional(),
+  building_area_m2: z.number().positive().nullable().optional(),
+  total_floor_area_m2: z.number().positive().nullable().optional(),
+  floor1_area_m2: z.number().nonnegative().nullable().optional(),
+  floor2_area_m2: z.number().nonnegative().nullable().optional(),
+  roof_area_m2: z.number().nonnegative().nullable().optional(),
+  exterior_wall_area_m2: z.number().nonnegative().nullable().optional(),
+  interior_wall_area_m2: z.number().nonnegative().nullable().optional(),
+  ceiling_area_m2: z.number().nonnegative().nullable().optional(),
+  foundation_perimeter_m: z.number().nonnegative().nullable().optional(),
+  roof_perimeter_m: z.number().nonnegative().nullable().optional(),
+  porch_area_m2: z.number().nonnegative().nullable().optional(),
+  prefecture: z.string().max(50).nullable().optional(),
+  city: z.string().max(100).nullable().optional(),
+  municipality_code: z.string().max(20).nullable().optional(),
+  address_text: z.string().max(500).nullable().optional(),
+  insulation_grade: z.enum(['5', '6']).nullable().optional(),
+  has_wb: z.number().int().min(0).max(1).nullable().optional(),
+  fire_zone_type: z.enum(['standard', 'semi_fire', 'fire']).nullable().optional(),
+  roof_shape: z.enum(['kirizuma', 'yosemune', 'katanagare', 'flat', 'other']).nullable().optional(),
+  has_pv: z.number().int().min(0).max(1).nullable().optional(),
+  pv_capacity_kw: z.number().nonnegative().nullable().optional(),
+  pv_panels: z.number().int().nonnegative().nullable().optional(),
+  has_battery: z.number().int().min(0).max(1).nullable().optional(),
+  battery_capacity_kwh: z.number().nonnegative().nullable().optional(),
+  has_dormer: z.number().int().min(0).max(1).nullable().optional(),
+  dormer_tsubo: z.number().nonnegative().nullable().optional(),
+  has_loft: z.number().int().min(0).max(1).nullable().optional(),
+  loft_tsubo: z.number().nonnegative().nullable().optional(),
+  is_one_story: z.number().int().min(0).max(1).nullable().optional(),
+  is_two_family: z.number().int().min(0).max(1).nullable().optional(),
+  is_shizuoka_prefecture: z.number().int().min(0).max(1).nullable().optional(),
+  has_yakisugi: z.number().int().min(0).max(1).nullable().optional(),
+  yakisugi_area_m2: z.number().nonnegative().nullable().optional(),
+  has_water_intake: z.number().int().min(0).max(1).nullable().optional(),
+  has_sewer_intake: z.number().int().min(0).max(1).nullable().optional(),
+  has_water_meter: z.number().int().min(0).max(1).nullable().optional(),
+  plumbing_distance_m: z.number().nonnegative().nullable().optional(),
+  gutter_length_m: z.number().nonnegative().nullable().optional(),
+  downspout_length_m: z.number().nonnegative().nullable().optional(),
+  standard_gross_margin_rate: z.number().min(0).max(100).nullable().optional(),
+  solar_gross_margin_rate: z.number().min(0).max(100).nullable().optional(),
+  option_gross_margin_rate: z.number().min(0).max(100).nullable().optional(),
+}).strict();
+
+projectRoutes.patch('/:id', requireRole('admin', 'manager', 'estimator'), async (c) => {
+  const db = c.env.DB;
+  const user = c.get('currentUser')!;
+  const id = parseInt(c.req.param('id'));
+
+  if (isNaN(id)) {
+    const err = validationError('Invalid project ID: must be a number');
+    return c.json(err.body, err.status);
+  }
+
+  // Fetch existing project
+  const existing = await db.prepare('SELECT * FROM projects WHERE id = ?').bind(id).first() as any;
+  if (!existing) {
+    const err = notFoundError('Project', id);
+    return c.json(err.body, err.status);
+  }
+
+  let body: any;
+  try {
+    body = await c.req.json();
+  } catch {
+    const err = validationError('Invalid JSON body');
+    return c.json(err.body, err.status);
+  }
+
+  const parsed = UpdateProjectSchema.safeParse(body);
+  if (!parsed.success) {
+    const err = validationError('Validation failed', parsed.error.flatten().fieldErrors);
+    return c.json(err.body, err.status);
+  }
+
+  const updates = parsed.data;
+  const keys = Object.keys(updates);
+  if (keys.length === 0) {
+    const err = validationError('No fields to update');
+    return c.json(err.body, err.status);
+  }
+
+  // Build SET clause dynamically
+  const setClauses: string[] = [];
+  const values: any[] = [];
+  const beforeValues: Record<string, any> = {};
+
+  for (const key of keys) {
+    const val = (updates as any)[key];
+    setClauses.push(`${key} = ?`);
+    values.push(val);
+    beforeValues[key] = existing[key];
+  }
+
+  setClauses.push("updated_at = datetime('now')");
+  setClauses.push("version = version + 1");
+  values.push(id);
+
+  const sql = `UPDATE projects SET ${setClauses.join(', ')} WHERE id = ?`;
+  await db.prepare(sql).bind(...values).run();
+
+  // Audit log
+  await db.prepare(`
+    INSERT INTO project_audit_logs (project_id, action, target_type, target_id, before_value, after_value, changed_by, changed_at)
+    VALUES (?, 'update', 'project', ?, ?, ?, ?, datetime('now'))
+  `).bind(id, String(id), JSON.stringify(beforeValues), JSON.stringify(updates), user.id).run();
+
+  // Return updated project
+  const updated = await db.prepare('SELECT * FROM projects WHERE id = ?').bind(id).first();
+
+  return c.json({
+    success: true,
+    data: updated,
+    message: `案件を更新しました (${keys.length} 項目)`,
+    updated_fields: keys,
+  } satisfies ApiResponse);
+});
+
 export default projectRoutes;

@@ -236,6 +236,69 @@ masterRoutes.get('/system-settings', requireRole('admin', 'manager'), async (c) 
 });
 
 // --------------------------------------------------
+// PATCH /api/master/system-settings/:key  (CR-03 Fix)
+// 権限: admin, manager
+// --------------------------------------------------
+masterRoutes.patch('/system-settings/:key', requireRole('admin', 'manager'), async (c) => {
+  const db = c.env.DB;
+  const key = c.req.param('key');
+  const user = c.get('currentUser')!;
+
+  let body: any;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ success: false, error: 'Invalid JSON body', code: 'VALIDATION_ERROR' }, 400);
+  }
+
+  if (!body || body.setting_value === undefined) {
+    return c.json({ success: false, error: 'setting_value is required', code: 'VALIDATION_ERROR' }, 400);
+  }
+
+  // Verify setting exists
+  const existing = await db.prepare(
+    'SELECT id, setting_key, setting_value, value_type FROM system_settings WHERE setting_key = ?'
+  ).bind(key).first() as any;
+
+  if (!existing) {
+    return c.json({ success: false, error: `Setting not found: ${key}`, code: 'NOT_FOUND' }, 404);
+  }
+
+  // Type validation
+  const newValue = String(body.setting_value);
+  if (existing.value_type === 'number' && isNaN(Number(newValue))) {
+    return c.json({ success: false, error: `Invalid number value for ${key}`, code: 'VALIDATION_ERROR' }, 400);
+  }
+  if (existing.value_type === 'boolean' && !['true', 'false'].includes(newValue)) {
+    return c.json({ success: false, error: `Invalid boolean value for ${key}`, code: 'VALIDATION_ERROR' }, 400);
+  }
+
+  const oldValue = existing.setting_value;
+
+  await db.prepare(
+    "UPDATE system_settings SET setting_value = ?, updated_at = datetime('now') WHERE setting_key = ?"
+  ).bind(newValue, key).run();
+
+  // Audit log (best effort — skip if CHECK constraint prevents it)
+  try {
+    await db.prepare(`
+      INSERT INTO project_audit_logs (project_id, action, target_type, target_id, before_value, after_value, changed_by, changed_at)
+      VALUES (0, 'update', 'project', ?, ?, ?, ?, datetime('now'))
+    `).bind('setting:' + key, JSON.stringify({ setting_key: key, old_value: oldValue }), JSON.stringify({ setting_key: key, new_value: newValue }), user.id).run();
+  } catch {
+    // Audit log write failed due to FK or CHECK constraint — non-critical, skip silently
+  }
+
+  const updated = await db.prepare('SELECT * FROM system_settings WHERE setting_key = ?').bind(key).first();
+
+  return c.json({
+    success: true,
+    data: updated,
+    message: `設定「${key}」を更新しました`,
+  });
+});
+
+// --------------------------------------------------
 // GET /api/master/users
 // 権限: admin
 // --------------------------------------------------

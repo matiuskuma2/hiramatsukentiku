@@ -73,7 +73,7 @@ function layout(title: string, bodyContent: string, activeTab: string = '') {
           </div>
         </div>
         <div class="flex items-center space-x-3">
-          <span class="text-xs text-gray-400">v0.6.0 Step 6</span>
+          <span class="text-xs text-gray-400">v0.8.0 Step 8</span>
           <a href="/api/health" target="_blank" class="text-xs text-gray-400 hover:text-gray-600"><i class="fas fa-heartbeat mr-1"></i>API</a>
         </div>
       </div>
@@ -330,6 +330,180 @@ uiRoutes.get('/ui/projects/:id', (c) => {
 
       <!-- TAB 2: Cost Items -->
       <div x-show="activeTab === 'items'" class="fade-in">
+
+      <!-- TAB: Project Edit (CR-05) -->
+      <div x-show="activeTab === 'edit'" class="fade-in space-y-5">
+        <div x-show="editError" class="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600"><i class="fas fa-exclamation-circle mr-1"></i><span x-text="editError"></span></div>
+
+        <!-- Basic Info -->
+        <div class="bg-white rounded-xl border p-5">
+          <h3 class="font-semibold mb-4 text-gray-800"><i class="fas fa-home mr-2 text-hm-600"></i>基本情報</h3>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">案件コード</label>
+              <div class="w-full bg-gray-100 rounded-lg px-3 py-2 text-sm text-gray-600 font-mono" x-text="project?.project_code"></div></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">案件名</label>
+              <input :value="project?.project_name" @change="saveProjectEdit('project_name', $event.target.value)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500 focus:border-transparent"></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">顧客名</label>
+              <input :value="project?.customer_name || ''" @change="saveProjectEdit('customer_name', $event.target.value || null)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500 focus:border-transparent" placeholder="山田太郎"></div>
+          </div>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">ラインナップ <span class="text-red-400">*</span></label>
+              <select :value="project?.lineup" @change="saveProjectEdit('lineup', $event.target.value)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500">
+                <option value="SHIN">SHIN</option><option value="RIN">RIN</option><option value="MOKU_OOYANE">MOKU 大屋根</option><option value="MOKU_HIRAYA">MOKU 平屋</option><option value="MOKU_ROKU">MOKU ROKU</option></select></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">ステータス</label>
+              <select :value="project?.status" @change="saveProjectEdit('status', $event.target.value)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500">
+                <option value="draft">下書き</option><option value="in_progress">進行中</option><option value="needs_review">要レビュー</option><option value="reviewed">レビュー済</option><option value="archived">アーカイブ</option></select></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">断熱等級</label>
+              <select :value="project?.insulation_grade || ''" @change="saveProjectEdit('insulation_grade', $event.target.value || null)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500">
+                <option value="">-</option><option value="5">5</option><option value="6">6</option></select></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">防火区分</label>
+              <select :value="project?.fire_zone_type || ''" @change="saveProjectEdit('fire_zone_type', $event.target.value || null)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500">
+                <option value="">-</option><option value="standard">一般</option><option value="semi_fire">準防火</option><option value="fire">防火</option></select></div>
+          </div>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">屋根形状</label>
+              <select :value="project?.roof_shape || ''" @change="saveProjectEdit('roof_shape', $event.target.value || null)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500">
+                <option value="">-</option><option value="kirizuma">切妻</option><option value="yosemune">寄棟</option><option value="katanagare">片流れ</option><option value="flat">フラット</option><option value="other">その他</option></select></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">WB工法</label>
+              <select :value="String(project?.has_wb ?? '')" @change="saveProjectEdit('has_wb', parseInt($event.target.value))" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500">
+                <option value="1">あり</option><option value="0">なし</option></select></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">平屋</label>
+              <select :value="String(project?.is_one_story ?? '')" @change="saveProjectEdit('is_one_story', parseInt($event.target.value))" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500">
+                <option value="">-</option><option value="1">はい</option><option value="0">いいえ</option></select></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">二世帯</label>
+              <select :value="String(project?.is_two_family ?? '')" @change="saveProjectEdit('is_two_family', parseInt($event.target.value))" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500">
+                <option value="">-</option><option value="1">はい</option><option value="0">いいえ</option></select></div>
+          </div>
+        </div>
+
+        <!-- Area / Size -->
+        <div class="bg-white rounded-xl border p-5">
+          <h3 class="font-semibold mb-4 text-gray-800"><i class="fas fa-ruler-combined mr-2 text-blue-600"></i>面積・寸法</h3>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">坪数</label>
+              <input type="number" step="0.1" :value="project?.tsubo || ''" @change="saveProjectEdit('tsubo', parseFloat($event.target.value) || null)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500" placeholder="35.5"></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">建築面積 (m2)</label>
+              <input type="number" step="0.01" :value="project?.building_area_m2 || ''" @change="saveProjectEdit('building_area_m2', parseFloat($event.target.value) || null)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500"></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">延床面積 (m2)</label>
+              <input type="number" step="0.01" :value="project?.total_floor_area_m2 || ''" @change="saveProjectEdit('total_floor_area_m2', parseFloat($event.target.value) || null)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500"></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">1F面積 (m2)</label>
+              <input type="number" step="0.01" :value="project?.floor1_area_m2 || ''" @change="saveProjectEdit('floor1_area_m2', parseFloat($event.target.value) || null)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500"></div>
+          </div>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">2F面積 (m2)</label>
+              <input type="number" step="0.01" :value="project?.floor2_area_m2 || ''" @change="saveProjectEdit('floor2_area_m2', parseFloat($event.target.value) || null)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500"></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">屋根面積 (m2)</label>
+              <input type="number" step="0.01" :value="project?.roof_area_m2 || ''" @change="saveProjectEdit('roof_area_m2', parseFloat($event.target.value) || null)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500"></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">外壁面積 (m2)</label>
+              <input type="number" step="0.01" :value="project?.exterior_wall_area_m2 || ''" @change="saveProjectEdit('exterior_wall_area_m2', parseFloat($event.target.value) || null)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500"></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">内壁面積 (m2)</label>
+              <input type="number" step="0.01" :value="project?.interior_wall_area_m2 || ''" @change="saveProjectEdit('interior_wall_area_m2', parseFloat($event.target.value) || null)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500"></div>
+          </div>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">天井面積 (m2)</label>
+              <input type="number" step="0.01" :value="project?.ceiling_area_m2 || ''" @change="saveProjectEdit('ceiling_area_m2', parseFloat($event.target.value) || null)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500"></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">基礎周長 (m)</label>
+              <input type="number" step="0.01" :value="project?.foundation_perimeter_m || ''" @change="saveProjectEdit('foundation_perimeter_m', parseFloat($event.target.value) || null)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500"></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">屋根周長 (m)</label>
+              <input type="number" step="0.01" :value="project?.roof_perimeter_m || ''" @change="saveProjectEdit('roof_perimeter_m', parseFloat($event.target.value) || null)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500"></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">ポーチ面積 (m2)</label>
+              <input type="number" step="0.01" :value="project?.porch_area_m2 || ''" @change="saveProjectEdit('porch_area_m2', parseFloat($event.target.value) || null)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500"></div>
+          </div>
+        </div>
+
+        <!-- Location -->
+        <div class="bg-white rounded-xl border p-5">
+          <h3 class="font-semibold mb-4 text-gray-800"><i class="fas fa-map-marker-alt mr-2 text-red-500"></i>所在地</h3>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">都道府県</label>
+              <input :value="project?.prefecture || ''" @change="saveProjectEdit('prefecture', $event.target.value || null)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500" placeholder="静岡県"></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">市区町村</label>
+              <input :value="project?.city || ''" @change="saveProjectEdit('city', $event.target.value || null)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500" placeholder="浜松市"></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">自治体コード</label>
+              <input :value="project?.municipality_code || ''" @change="saveProjectEdit('municipality_code', $event.target.value || null)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500" placeholder="221309"></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">静岡県内</label>
+              <select :value="String(project?.is_shizuoka_prefecture ?? '')" @change="saveProjectEdit('is_shizuoka_prefecture', parseInt($event.target.value))" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500">
+                <option value="">-</option><option value="1">はい</option><option value="0">いいえ</option></select></div>
+          </div>
+          <div class="mt-4"><label class="block text-xs font-medium text-gray-500 mb-1">住所テキスト</label>
+            <input :value="project?.address_text || ''" @change="saveProjectEdit('address_text', $event.target.value || null)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500" placeholder="静岡県浜松市中央区..."></div>
+        </div>
+
+        <!-- Solar / Options -->
+        <div class="bg-white rounded-xl border p-5">
+          <h3 class="font-semibold mb-4 text-gray-800"><i class="fas fa-solar-panel mr-2 text-yellow-500"></i>太陽光・オプション</h3>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">太陽光パネル</label>
+              <select :value="String(project?.has_pv ?? '')" @change="saveProjectEdit('has_pv', parseInt($event.target.value))" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500">
+                <option value="">-</option><option value="1">あり</option><option value="0">なし</option></select></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">PV容量 (kW)</label>
+              <input type="number" step="0.1" :value="project?.pv_capacity_kw || ''" @change="saveProjectEdit('pv_capacity_kw', parseFloat($event.target.value) || null)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500"></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">PVパネル数</label>
+              <input type="number" :value="project?.pv_panels || ''" @change="saveProjectEdit('pv_panels', parseInt($event.target.value) || null)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500"></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">蓄電池</label>
+              <select :value="String(project?.has_battery ?? '')" @change="saveProjectEdit('has_battery', parseInt($event.target.value))" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500">
+                <option value="">-</option><option value="1">あり</option><option value="0">なし</option></select></div>
+          </div>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">蓄電池容量 (kWh)</label>
+              <input type="number" step="0.1" :value="project?.battery_capacity_kwh || ''" @change="saveProjectEdit('battery_capacity_kwh', parseFloat($event.target.value) || null)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500"></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">ドーマー</label>
+              <select :value="String(project?.has_dormer ?? '')" @change="saveProjectEdit('has_dormer', parseInt($event.target.value))" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500">
+                <option value="">-</option><option value="1">あり</option><option value="0">なし</option></select></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">ロフト</label>
+              <select :value="String(project?.has_loft ?? '')" @change="saveProjectEdit('has_loft', parseInt($event.target.value))" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500">
+                <option value="">-</option><option value="1">あり</option><option value="0">なし</option></select></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">焼杉</label>
+              <select :value="String(project?.has_yakisugi ?? '')" @change="saveProjectEdit('has_yakisugi', parseInt($event.target.value))" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500">
+                <option value="">-</option><option value="1">あり</option><option value="0">なし</option></select></div>
+          </div>
+        </div>
+
+        <!-- Plumbing / Infrastructure -->
+        <div class="bg-white rounded-xl border p-5">
+          <h3 class="font-semibold mb-4 text-gray-800"><i class="fas fa-wrench mr-2 text-gray-500"></i>設備・インフラ</h3>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">上水道引込</label>
+              <select :value="String(project?.has_water_intake ?? '')" @change="saveProjectEdit('has_water_intake', parseInt($event.target.value))" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500">
+                <option value="">-</option><option value="1">あり</option><option value="0">なし</option></select></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">下水道引込</label>
+              <select :value="String(project?.has_sewer_intake ?? '')" @change="saveProjectEdit('has_sewer_intake', parseInt($event.target.value))" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500">
+                <option value="">-</option><option value="1">あり</option><option value="0">なし</option></select></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">メーター</label>
+              <select :value="String(project?.has_water_meter ?? '')" @change="saveProjectEdit('has_water_meter', parseInt($event.target.value))" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500">
+                <option value="">-</option><option value="1">あり</option><option value="0">なし</option></select></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">配管距離 (m)</label>
+              <input type="number" step="0.1" :value="project?.plumbing_distance_m || ''" @change="saveProjectEdit('plumbing_distance_m', parseFloat($event.target.value) || null)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500"></div>
+          </div>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">雨樋延長 (m)</label>
+              <input type="number" step="0.1" :value="project?.gutter_length_m || ''" @change="saveProjectEdit('gutter_length_m', parseFloat($event.target.value) || null)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500"></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">竪樋延長 (m)</label>
+              <input type="number" step="0.1" :value="project?.downspout_length_m || ''" @change="saveProjectEdit('downspout_length_m', parseFloat($event.target.value) || null)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500"></div>
+          </div>
+        </div>
+
+        <!-- Margin Rates -->
+        <div class="bg-white rounded-xl border p-5">
+          <h3 class="font-semibold mb-4 text-gray-800"><i class="fas fa-percentage mr-2 text-green-600"></i>粗利率設定</h3>
+          <div class="grid grid-cols-3 gap-4">
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">標準粗利率 (%)</label>
+              <input type="number" step="0.1" :value="project?.standard_gross_margin_rate || ''" @change="saveProjectEdit('standard_gross_margin_rate', parseFloat($event.target.value) || null)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500" placeholder="30"></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">太陽光粗利率 (%)</label>
+              <input type="number" step="0.1" :value="project?.solar_gross_margin_rate || ''" @change="saveProjectEdit('solar_gross_margin_rate', parseFloat($event.target.value) || null)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500" placeholder="25"></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">オプション粗利率 (%)</label>
+              <input type="number" step="0.1" :value="project?.option_gross_margin_rate || ''" @change="saveProjectEdit('option_gross_margin_rate', parseFloat($event.target.value) || null)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500" placeholder="30"></div>
+          </div>
+          <div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800">
+            <i class="fas fa-info-circle mr-1"></i>案件個別の粗利率を設定すると、売価ギャップ判定にこの値が使われます。未設定の場合はシステムデフォルト値（標準30%、太陽光25%、オプション30%）が使用されます。</div>
+        </div>
+
+        <!-- Saving indicator -->
+        <div x-show="editSaving" class="fixed top-16 right-4 z-50 bg-hm-600 text-white px-4 py-2 rounded-lg shadow-lg text-sm toast-enter">
+          <i class="fas fa-spinner fa-spin mr-1"></i>保存中...</div>
+      </div>
+
+
         <div class="flex items-center justify-between mb-4">
           <div class="flex gap-2"><input x-model="itemSearch" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-64 focus:ring-2 focus:ring-hm-500" placeholder="工種名で検索...">
             <select x-model="itemReviewFilter" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm"><option value="">全ステータス</option><option value="pending">未確認</option><option value="confirmed">確認済</option><option value="needs_review">要確認</option><option value="flagged">フラグ</option></select></div>
@@ -662,6 +836,7 @@ uiRoutes.get('/ui/projects/:id', (c) => {
         salesForm: { estimate_type:'rough', total_sale_price:0, standard_sale:0, solar_sale:0 },
         tabs: [
           { id:'risk', label:'リスクセンター', icon:'fas fa-shield-alt', badge:0, badgeColor:'bg-red-500 text-white' },
+          { id:'edit', label:'案件情報', icon:'fas fa-edit', badge:0, badgeColor:'' },
           { id:'items', label:'工種明細', icon:'fas fa-list-alt', badge:0, badgeColor:'bg-gray-200 text-gray-600' },
           { id:'diffs', label:'差分解決', icon:'fas fa-code-compare', badge:0, badgeColor:'bg-orange-500 text-white' },
           { id:'summary', label:'原価サマリ', icon:'fas fa-chart-pie', badge:0, badgeColor:'' },
@@ -704,11 +879,29 @@ uiRoutes.get('/ui/projects/:id', (c) => {
         },
         updateBadges() {
           this.tabs[0].badge = this.risk?.summary?.action_required_count || 0;
-          this.tabs[1].badge = this.items.length;
-          this.tabs[2].badge = this.diffMeta?.pending || 0;
-          this.tabs[5].badge = (this.aiWarnings?.open || this.warnings.filter(w => w.status === 'open').length);
+          this.tabs[2].badge = this.items.length;
+          this.tabs[3].badge = this.diffMeta?.pending || 0;
+          this.tabs[6].badge = (this.aiWarnings?.open || this.warnings.filter(w => w.status === 'open').length);
         },
         onTabChange(tabId) {},
+        editSaving: false, editError: '',
+        async saveProjectEdit(field, value) {
+          this.editSaving = true; this.editError = '';
+          const body = {}; body[field] = value;
+          const res = await api.patch('/projects/' + projectId, body);
+          this.editSaving = false;
+          if (res.success) { this.project = res.data; this.showToast('「' + field + '」を更新しました', 'success'); }
+          else { this.editError = res.error || '更新に失敗しました'; this.showToast('エラー: ' + (res.error||''), 'error'); }
+        },
+        async saveProjectBatch(fields) {
+          this.editSaving = true; this.editError = '';
+          const body = {};
+          for (const [k, v] of Object.entries(fields)) { body[k] = v === '' ? null : v; }
+          const res = await api.patch('/projects/' + projectId, body);
+          this.editSaving = false;
+          if (res.success) { this.project = res.data; this.showToast(Object.keys(fields).length + '項目を更新しました', 'success'); }
+          else { this.editError = res.error || '更新に失敗しました'; this.showToast('エラー: ' + (res.error||''), 'error'); }
+        },
         filteredItems() { let r = this.items; if(this.itemSearch){const q=this.itemSearch.toLowerCase();r=r.filter(i=>(i.item_name||'').toLowerCase().includes(q)||(i.category_code||'').toLowerCase().includes(q));} if(this.itemReviewFilter){r=r.filter(i=>i.review_status===this.itemReviewFilter);} return r; },
         openEditModal(item) { this.editModal.item = item; this.editModal.form = { manual_quantity:item.manual_quantity, manual_unit_price:item.manual_unit_price, manual_amount:item.manual_amount, override_reason_category:item.override_reason_category||'', override_reason:item.override_reason||'', note:item.note||'', review_status:'', vendor_name:item.vendor_name||'' }; this.editModal.error=''; this.editModal.show=true; },
         async saveItemEdit() {
