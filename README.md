@@ -1,158 +1,204 @@
-# 平松建築 見積原価システム (Hiramatsu Cost)
+# 平松建築 原価管理システム (hiramatsu-cost)
 
 ## Project Overview
 - **Name**: hiramatsu-cost
-- **Goal**: 平松建築の見積原価管理をシステム化。マスターデータに基づく自動原価計算・スナップショット管理・レビューワークフロー
-- **Phase**: Step 3 完了 (M3 マイルストーン通過)
+- **Goal**: 平松建築の住宅コスト見積もりを自動化する原価管理システム
+- **Phase**: Step 4 完了 (Sales Estimate / Risk Centre / AI Phase 1 / Frontend UI)
+- **Stack**: Hono + TypeScript + Cloudflare D1 + TailwindCSS + Alpine.js
 
-## Current Status (2026-03-08)
+## URLs
+- **Sandbox**: https://3000-ir9zs5r25rb1al74y1qzm-3844e1b6.sandbox.novita.ai
+- **UI**: /ui/projects (案件一覧), /ui/projects/:id (詳細 + リスクセンター)
+- **API Health**: /api/health
 
-### Completed
-- **Step 0 (Spike)**: D1技術検証 11/11 PASS, Queue production test 8/8 PASS
-- **Step 1-A**: DB Schema 25テーブル確定, Seed投入 (items=58, versions=58, rules=47, categories=10)
-- **Step 2**: マスタ参照API, Project API, Snapshot生成エンジン
-- **Step 2.5**: project.status遷移修正, warnings shape確定, APIエラーコード規約, sync_fallback統一
-- **Step 3**: Regenerate API (3モード), Diff Resolution API, Work-type Detail Update API, M3 full cycle PASS
+## 完了済みステップ
+| Step | 内容 | Status |
+|------|-------|--------|
+| Step 0 | Spike検証 (D1, Queue, Batch, Index, TX) | ✅ |
+| Step 1 | DBスキーマ25テーブル + Seed (58 items, 47 rules, 10 categories) | ✅ |
+| Step 2 | マスタ参照API + Project API + Snapshot Engine | ✅ |
+| Step 2.5 | status遷移修正 + warnings shape + error code policy + sync_fallback | ✅ |
+| Step 3 | Regenerate 3モード + Diff Resolution + 工種詳細Update + M3 milestone | ✅ |
+| Step 4 | Sales Estimate + Risk Centre + AI Phase 1 + Frontend UI + M4 milestone | ✅ |
 
-### M3 Milestone Results
-```
-regenerate → diff generation → diff resolution → re-validation: PASS
-  - Regenerate (preserve_reviewed): 4 preserved, 54 recalculated, 2 diffs detected
-  - Diff resolve (adopt_candidate): status=adopted, review=needs_review ✅
-  - Diff resolve (manual_adjust): status=manual_adjusted, amount=200,000 ✅
-  - Diff resolve (duplicate): 409 STATE_MISMATCH ✅
-  - All diffs resolved: pending=0 ✅
-  - Work-type update: final=500,000, revision_no incremented ✅
-  - Summary/Snapshot recalculated in same TX ✅
-```
+## API一覧
 
-### API Endpoints
+### Master Data
+| Method | Path | 権限 | 説明 |
+|--------|------|------|------|
+| GET | /api/master/categories | all | カテゴリ一覧 (10件) |
+| GET | /api/master/items | all | マスタ明細一覧 (58件) |
+| GET | /api/master/items/:id | all | 明細詳細 (versions, rules含む) |
+| GET | /api/master/system-settings | all | システム設定 (9件) |
+| GET | /api/master/users | all | ユーザー一覧 |
 
-| Path | Method | Permission | Description |
-|------|--------|------------|-------------|
-| `/api/health` | GET | public | Health check |
-| `/api/master/categories` | GET | viewer+ | カテゴリ一覧 (10件) |
-| `/api/master/categories/:code` | GET | viewer+ | カテゴリ詳細 + items数 |
-| `/api/master/items` | GET | viewer+ | マスタ項目一覧 (58件) |
-| `/api/master/items?category=foundation` | GET | viewer+ | カテゴリ絞込 |
-| `/api/master/items/:id` | GET | viewer+ | マスタ項目詳細 |
-| `/api/master/items/:id/versions` | GET | viewer+ | 版履歴 |
-| `/api/master/rules?item_id=xxx` | GET | viewer+ | ルール一覧 |
-| `/api/master/system-settings` | GET | admin/manager | システム設定 (9件) |
-| `/api/master/users` | GET | admin | ユーザー一覧 |
-| `/api/master/users/me` | GET | viewer+ | 自分の情報 |
-| `/api/projects` | GET | viewer+ | プロジェクト一覧 |
-| `/api/projects/:id` | GET | viewer+ | プロジェクト詳細 |
-| `/api/projects` | POST | estimator+ | プロジェクト作成 |
-| `/api/projects/:id/snapshots/enqueue` | POST | estimator+ | スナップショット生成/再生成 |
-| `/api/projects/:id/snapshots` | GET | viewer+ | スナップショット一覧 |
-| `/api/projects/:id/snapshots/:snapshotId` | GET | viewer+ | スナップショット詳細 |
-| `/api/projects/:id/snapshots/jobs/:jobId` | GET | viewer+ | ジョブ状態 |
-| `/api/projects/:id/diffs` | GET | viewer+ | Diff一覧 (?snapshot_id, ?significant_only, ?category, ?status) |
-| `/api/projects/:id/diffs/:diffId/resolve` | POST | estimator+ | Diff解決 (adopt/keep/dismiss/manual_adjust) |
-| `/api/projects/:id/diffs/resolve-all` | POST | manager+ | 一括Diff解決 (keep_current/dismiss) |
-| `/api/projects/:id/cost-items/:itemId` | PATCH | estimator+ | 工種詳細更新 (手修正/理由/review_status) |
-| `/api/projects/:id/cost-items/:itemId/review` | POST | manager+ | レビュー状態変更 |
+### Projects
+| Method | Path | 権限 | 説明 |
+|--------|------|------|------|
+| GET | /api/projects | all | 案件一覧 (?status, ?page, ?per_page) |
+| GET | /api/projects/:id | all | 案件詳細 |
+| POST | /api/projects | estimator+ | 案件作成 |
 
-### Regenerate API (Step 3)
+### Snapshots
+| Method | Path | 権限 | 説明 |
+|--------|------|------|------|
+| POST | /api/projects/:id/snapshots/enqueue | estimator+ | スナップショット生成 (initial/regenerate_*) |
+| GET | /api/projects/:id/snapshots | all | スナップショット一覧 |
+| GET | /api/projects/:id/snapshots/:snapshotId | all | スナップショット詳細 (items, summaries, warnings) |
+| GET | /api/projects/:id/snapshots/jobs/:jobId | all | ジョブ状態 |
 
-| job_type | Default | Permission | 動作 |
-|----------|---------|------------|------|
-| `regenerate_preserve_reviewed` | ✅ default | estimator+ | confirmed明細を保持、pending明細を再計算 |
-| `regenerate_auto_only` | | estimator+ | auto列のみ再計算、manual override保持 |
-| `regenerate_replace_all` | | manager+ | 全明細を新規再計算 (confirmed/manual含む) |
+### Regeneration & Diffs
+| Method | Path | 権限 | Default Mode | 409条件 | 422条件 |
+|--------|------|------|-------------|---------|---------|
+| POST | .../enqueue (preserve_reviewed) | estimator+ | ✅ default | unresolved diff, active job | no snapshot |
+| POST | .../enqueue (auto_only) | estimator+ | - | unresolved diff, active job | no snapshot |
+| POST | .../enqueue (replace_all) | manager+ | - | active job | no snapshot |
+| GET | /api/projects/:id/diffs | all | - | - | - |
+| POST | /api/projects/:id/diffs/:diffId/resolve | estimator+ | - | already resolved | - |
+| POST | /api/projects/:id/diffs/resolve-all | manager+ | - | - | - |
 
-**409 conditions**: unresolved diffs exist (preserve_reviewed/auto_only), active job already running
-**422 conditions**: initial with existing snapshot, regenerate without snapshot
+### Cost Items (工種詳細)
+| Method | Path | 権限 | 説明 |
+|--------|------|------|------|
+| PATCH | /api/projects/:id/cost-items/:itemId | estimator+ | 手修正 (quantity/price/amount/reason/review_status) |
+| POST | /api/projects/:id/cost-items/:itemId/review | manager+ | レビューステータス変更 |
 
-### Diff Resolution API (Step 3)
+### Sales Estimates (Step 4.1)
+| Method | Path | 権限 | 説明 |
+|--------|------|------|------|
+| POST | /api/projects/:id/sales-estimates | estimator+ | 売価見積もり作成 + gap計算 + warning生成 |
+| GET | /api/projects/:id/sales-estimates | all | 見積もり一覧 (?estimate_type, ?current_only) |
+| GET | /api/projects/:id/sales-estimates/:estimateId | all | 見積もり詳細 + gap分析 |
+| PATCH | /api/projects/:id/sales-estimates/:estimateId | estimator+ | 見積もり更新 + gap再計算 |
+| GET | /api/projects/:id/gap-analysis | all | 現在の乖離分析 |
 
-| action | resolution_status | review_status変更 | 明細への影響 |
-|--------|-------------------|-------------------|-------------|
-| `adopt_candidate` | adopted | → needs_review | final = auto値に戻す |
-| `keep_current` | kept | 変更なし | 変更なし |
-| `dismiss` | dismissed | 変更なし | 変更なし |
-| `manual_adjust` | manual_adjusted | → needs_review | final = manual_amount |
+### Risk Centre (Step 4.2)
+| Method | Path | 権限 | 説明 |
+|--------|------|------|------|
+| GET | /api/projects/:id/risk-centre | all | リスクセンター (集約エンドポイント) |
 
-**State rules**: already resolved → 409 STATE_MISMATCH; superseded snapshot → 422
+**Risk Centre返却フィールド:**
+- summary: risk_level, risk_score, error/warning/info counts
+- input_completion: overall_rate, required_rate, unset fields
+- sales_gap: margin, deviation, cost vs sale
+- regeneration_diffs: unresolved, significant, total_change
+- review_progress: confirmed, pending, needs_review, flagged
+- risks[]: id, category, severity, title, description, action_required
+- warning_summary: ai, system, regeneration, manual counts
 
-### Work-type Detail Update (Step 3)
+### AI Phase 1 (Step 4.3)
+| Method | Path | 権限 | Mode | 説明 |
+|--------|------|------|------|------|
+| POST | /api/ai/check-conditions | estimator+ | rule_based / ai_enhanced | 条件チェック (unmet conditions) |
+| POST | /api/ai/classify-override-reason | estimator+ | keyword_matching / ai_enhanced | 理由分類 |
+| POST | /api/ai/parse-document | estimator+ | pattern_matching / ai_enhanced | 書類解析 |
+| GET | /api/ai/status | all | - | AI機能ステータス |
 
-同一トランザクションで実行:
-1. `project_cost_items` の明細更新 (manual_quantity/price/amount, reason, review_status)
-2. `project_cost_summaries` のカテゴリ合計再計算
-3. `project_cost_snapshots` の総額再計算
-4. `projects.revision_no` インクリメント
-5. `project_audit_logs` 監査ログ
-6. 20%超の変動時 → `project_warnings` に警告追加
+**AI Phase 1 特徴:**
+- OPENAI_API_KEY未設定時: ルールベース/パターンマッチで動作
+- 結果は参照用のみ、自動反映なし (staging)
+- Phase 2で自動反映機能を実装予定
 
-### API Error Code Policy (Step 2.5-D)
+### Frontend UI (Step 4.4)
+| Path | 説明 |
+|------|------|
+| /ui/projects | 案件一覧 (フィルタ、新規作成) |
+| /ui/projects/:id | 案件詳細 (5タブ: リスクセンター, 工種明細, 差分解決, 原価サマリ, 売価見積) |
 
-| HTTP | Error Code | 説明 |
-|------|------------|------|
-| 400 | VALIDATION_ERROR | リクエスト不正 |
+## Error Code Mapping
+| HTTP | Code | 用途 |
+|------|------|------|
+| 400 | VALIDATION_ERROR | 入力エラー |
 | 401 | UNAUTHENTICATED | 認証なし |
 | 403 | INSUFFICIENT_PERMISSION | 権限不足 |
-| 404 | NOT_FOUND | リソース不在 |
-| 409 | CONFLICT / DUPLICATE_ENQUEUE / STATE_MISMATCH | 競合・重複・状態不整合 |
+| 404 | NOT_FOUND | リソース未検出 |
+| 409 | CONFLICT / DUPLICATE_ENQUEUE / STATE_MISMATCH / OPTIMISTIC_LOCK_CONFLICT | 競合 |
 | 422 | BUSINESS_RULE_VIOLATION | ビジネスルール違反 |
-| 500 | INTERNAL_ERROR | サーバーエラー |
+| 500 | INTERNAL_ERROR | 内部エラー |
 
-### Data Architecture
-- **Database**: Cloudflare D1 (SQLite) — 25+ tables
-- **Storage**: project_cost_snapshots, project_cost_items, project_cost_summaries, project_warnings, project_cost_regeneration_diffs
-- **Queue**: Cloudflare Queue (sync_fallback in local dev)
-- **Auth**: CF Access + DEV_USER_EMAIL bypass
+## Sales Comparison Thresholds (system_settings)
+| Key | Value | 説明 |
+|-----|-------|------|
+| sales_gap_warning_threshold | 10% | 粗利率乖離のwarning閾値 |
+| sales_gap_error_threshold | 20% | 粗利率乖離のerror閾値 |
+| default_standard_margin_rate | 30% | 期待標準粗利率 |
+| default_solar_margin_rate | 25% | 期待太陽光粗利率 |
+| default_option_margin_rate | 30% | 期待オプション粗利率 |
+
+## Warning Rules
+1. **売価入力** → gap計算 → 期待粗利率との乖離を判定
+2. 乖離 ≥ warning_threshold (10%) → severity: warning
+3. 乖離 ≥ error_threshold (20%) → severity: error
+4. 売価 < 原価 → severity: error (negative margin)
+5. 売価更新時 → warning自動更新/解除
+6. OK範囲に戻った場合 → warning resolved
+
+## Data Architecture
+- **Database**: Cloudflare D1 (SQLite) — 25テーブル
+- **Storage**: project_cost_snapshots, project_cost_items, project_cost_summaries
+- **Warnings**: project_warnings (source: system/ai/regeneration/manual)
+- **Sales**: project_sales_estimates (estimate_type: rough/internal/contract/execution)
+- **Diffs**: project_cost_regeneration_diffs (resolution_status: pending/adopted/kept/dismissed/manual_adjusted)
+- **Queue**: Cloudflare Queue + sync_fallback
+- **Auth**: CF Access + dev email bypass
 - **Enums**: 37 Zod enum definitions
-
-### Status Transition
-```
-draft → calculating (enqueue時) → in_progress (snapshot完了時)
-                                 → draft (失敗時=元のstatusに復元)
-in_progress → needs_review → reviewed → archived
-```
-
-### Diff Lifecycle
-```
-regenerate → diffs created (resolution_status=pending)
-  → adopt_candidate / keep_current / dismiss / manual_adjust
-  → all resolved (pending=0) → ready for next regeneration
-```
 
 ## File Structure
 ```
 src/
-├── index.tsx              # Main app + Spike test routes
-├── types/bindings.ts      # Cloudflare bindings types
-├── schemas/enums.ts       # Zod enum definitions (37 enums)
-├── lib/errors.ts          # API error code factory
-├── middleware/auth.ts      # CF Access + role RBAC
-├── routes/
-│   ├── master.ts          # Master reference API (GET only)
-│   ├── projects.ts        # Project CRUD
-│   ├── snapshots.ts       # Snapshot enqueue/detail + Diff resolution
-│   └── costItems.ts       # Work-type detail update + Review
+├── index.tsx                    # Main app, spike tests, route mounting
+├── types/bindings.ts           # Cloudflare bindings, AppEnv, ApiResponse
+├── schemas/enums.ts            # 37 Zod enum definitions
+├── lib/errors.ts               # Error code policy (400-500)
+├── middleware/auth.ts           # resolveUser + requireRole
 ├── engine/
-│   ├── snapshotGenerator.ts  # Initial snapshot generation
-│   └── regenerateEngine.ts   # Regeneration engine (shadow snapshot + diff)
-└── services/
-    └── queueService.ts    # Queue abstraction (real/sync fallback)
-
-migrations/
-├── 0001_initial_schema.sql
-├── 0002_cr01_cr02_tables_and_columns.sql
-├── 0003_warnings_source_status.sql
-└── 0004_diff_resolution_columns.sql
+│   ├── snapshotGenerator.ts    # Initial snapshot generation
+│   └── regenerateEngine.ts     # Regeneration (3 modes) + diff generation
+├── services/
+│   └── queueService.ts         # Queue + sync fallback
+└── routes/
+    ├── master.ts               # Master data API
+    ├── projects.ts             # Project CRUD
+    ├── snapshots.ts            # Snapshot + Diffs API
+    ├── costItems.ts            # Cost item update + review
+    ├── salesEstimates.ts       # Sales estimate CRUD + gap analysis
+    ├── riskCentre.ts           # Risk centre aggregation
+    ├── ai.ts                   # AI Phase 1 stubs
+    └── ui.ts                   # Frontend UI (Alpine.js + TailwindCSS)
 ```
 
-## Deployment
-- **Platform**: Cloudflare Pages
-- **Tech Stack**: Hono + TypeScript + D1 + TailwindCSS
-- **Version**: 0.3.1-step3
-- **Last Updated**: 2026-03-08
+## M4 Milestone Results
+1案件のフロー: project作成 → snapshot生成 → 売価入力 → gap warning → risk centre → AI check → 売価修正 → warning解除
 
-## Next Steps (Step 4)
-1. CR absorption (CR-01 ~ CR-07)
-2. AI連携 (OpenAI による自動見積もり提案)
-3. Sales estimate comparison API
-4. Frontend UI scaffolding
+| ステップ | 結果 |
+|---------|------|
+| Project作成 (draft) | ✅ ID=9907 |
+| 初期Snapshot (58 items, 17 warnings) | ✅ total_cost=¥4,900,040 |
+| 売価入力 (5%マージン) | ✅ margin=4.76%, severity=error |
+| sales_estimate_gap warning生成 | ✅ 1件生成 |
+| Risk Centre集約 | ✅ level=high, score=27, errors=2, warnings=2 |
+| AI check-conditions | ✅ 47ルール, 25件unmet (rule_based) |
+| AI classify-override-reason | ✅ category=site_condition, confidence=0.7 |
+| AI parse-document | ✅ 4項目抽出, ¥3,250,000 |
+| 売価修正 (35%マージン) | ✅ severity=ok, margin=35.48% |
+| Risk Centre再確認 | ✅ level=medium, score=7 (sales gap解消) |
+
+## Regression Test Results
+- Master: categories=10, items=58, settings=9 ✅
+- Queue: 8/8 ALL_PASS ✅
+- Sales API: CRUD + gap + warning ✅
+- Risk Centre: aggregation ✅
+- AI: 3 endpoints active ✅
+- UI: /ui/projects 200, /ui/projects/:id 200 ✅
+
+## Next Steps
+- [ ] CR absorption (CR-01~07)
+- [ ] AI Phase 2: OPENAI_API_KEY連携, 自動反映
+- [ ] Frontend: 工種明細の編集モーダル, diff resolution UI強化
+- [ ] Cloudflare Pages本番デプロイ
+- [ ] E2Eテスト
+
+## Deployment
+- **Platform**: Cloudflare Pages (local dev with wrangler)
+- **Status**: ✅ Active (Sandbox)
+- **Last Updated**: 2026-03-08

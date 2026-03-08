@@ -5,6 +5,10 @@ import masterRoutes from './routes/master';
 import projectRoutes from './routes/projects';
 import snapshotRoutes from './routes/snapshots';
 import costItemRoutes from './routes/costItems';
+import salesEstimateRoutes from './routes/salesEstimates';
+import riskCentreRoutes from './routes/riskCentre';
+import aiRoutes from './routes/ai';
+import uiRoutes from './routes/ui';
 
 type Bindings = {
   DB: D1Database;
@@ -22,14 +26,18 @@ app.route('/api/master', masterRoutes);
 app.route('/api/projects', projectRoutes);
 app.route('/api/projects', snapshotRoutes);
 app.route('/api/projects', costItemRoutes);
+app.route('/api/projects', salesEstimateRoutes);
+app.route('/api/projects', riskCentreRoutes);
+app.route('/api/ai', aiRoutes);
+app.route('/', uiRoutes);
 
 // === Health Check ===
 app.get('/api/health', (c) => {
   return c.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    version: '0.3.1-step3',
-    phase: 'step-3-m3-milestone',
+    version: '0.4.0-step4',
+    phase: 'step-4-sales-risk-ai-ui',
   });
 });
 
@@ -1111,48 +1119,7 @@ app.get('/api/spike/run-all', async (c) => {
   });
 });
 
-// === Default route ===
-app.get('/', (c) => {
-  return c.html(`
-    <!DOCTYPE html>
-    <html lang="ja">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Hiramatsu Cost - Step 0 Spike</title>
-      <script src="https://cdn.tailwindcss.com"></script>
-    </head>
-    <body class="bg-gray-900 text-white p-8">
-      <div class="max-w-4xl mx-auto">
-        <h1 class="text-3xl font-bold mb-4">Step 0 Spike Test Dashboard</h1>
-        <p class="text-gray-400 mb-8">All tests run against local D1 (SQLite). Click each to execute.</p>
-        <div class="grid gap-4">
-          <a href="/api/health" class="block bg-gray-800 p-4 rounded hover:bg-gray-700">
-            <span class="text-green-400 font-mono">GET /api/health</span> — Health Check
-          </a>
-          <a href="/api/spike/auth" class="block bg-gray-800 p-4 rounded hover:bg-gray-700">
-            <span class="text-blue-400 font-mono">SP-07</span> — CF Access Auth Test
-          </a>
-          <a href="/api/spike/partial-index" class="block bg-gray-800 p-4 rounded hover:bg-gray-700">
-            <span class="text-yellow-400 font-mono">SP-01</span> — Partial Index Test
-          </a>
-          <a href="/api/spike/batch-size" class="block bg-gray-800 p-4 rounded hover:bg-gray-700">
-            <span class="text-yellow-400 font-mono">SP-06</span> — D1 Batch Size Test
-          </a>
-          <a href="/api/spike/shadow-snapshot-tx" class="block bg-gray-800 p-4 rounded hover:bg-gray-700">
-            <span class="text-red-400 font-mono">SP-02</span> — Shadow Snapshot TX Test
-          </a>
-          <a href="/api/spike/atomic-switch" class="block bg-gray-800 p-4 rounded hover:bg-gray-700">
-            <span class="text-red-400 font-mono">SP-04</span> — Atomic Snapshot Switch
-          </a>
-          <a href="/api/spike/queue-sim" class="block bg-gray-800 p-4 rounded hover:bg-gray-700">
-            <span class="text-purple-400 font-mono">SP-03</span> — Queue Simulation
-          </a>
-        </div>
-      </div>
-    </body>
-    </html>
-  `);
-});
+// Default route → redirect to UI
+// Spike tests remain accessible at /api/spike/*
 
 export default app;
