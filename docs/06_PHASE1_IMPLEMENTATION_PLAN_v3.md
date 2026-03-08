@@ -352,18 +352,18 @@ Step 11(1d)                                     █                         → 
   - D1 に 25テーブル + 47インデックス
   - system_settings 9件（migration SQL内で投入済み）
   - cost_categories 10件
-  - cost_master_items 49件
-  - cost_master_item_versions 49件
-  - cost_rule_conditions 54件
+  - cost_master_items **58件**（v3.1確定: 旧記載49 → 実データ58）
+  - cost_master_item_versions **58件**（v3.1確定: 旧記載49 → 実データ58）
+  - cost_rule_conditions **47件**（v3.1確定: 旧記載54 → 実データ47）
   - app_users 1件（admin）
 
 完了条件:
   □ SELECT COUNT(*) FROM sqlite_master WHERE type='table' → 25
   □ SELECT COUNT(*) FROM system_settings → 9
   □ SELECT COUNT(*) FROM cost_categories → 10
-  □ SELECT COUNT(*) FROM cost_master_items → 49
-  □ SELECT COUNT(*) FROM cost_master_item_versions → 49
-  □ SELECT COUNT(*) FROM cost_rule_conditions → 54
+  □ SELECT COUNT(*) FROM cost_master_items → **58**
+  □ SELECT COUNT(*) FROM cost_master_item_versions → **58**
+  □ SELECT COUNT(*) FROM cost_rule_conditions → **47**
   □ SELECT COUNT(*) FROM app_users WHERE role='admin' → 1
   □ 参照整合性: 全rules の master_item_id が items に存在
   □ CHECK制約テスト: 不正 status INSERT → エラー
@@ -445,7 +445,7 @@ Step 11(1d)                                     █                         → 
 ```yaml
 前提:
   - Step 2 完了（認証ミドルウェア動作）
-  - シードデータ投入済み（10工種、49明細、54ルール）
+  - シードデータ投入済み（10工種、**58明細**、**47ルール**）（v3.1確定）
 
 入力:
   - 01_DB_SCHEMA_DESIGN_v4.md（テーブル2〜9）
@@ -1132,6 +1132,6 @@ Phase 1 が「完成」と言える条件:
 ---
 
 *最終更新: 2026-03-08*
-*改訂番号: v3.1（Step 0 Spike 完了反映 — GO 判定記録、Step 1-A に Queue 本番test/CR-01〜CR-02 migration 追加、工数再見積なし）*
+*改訂番号: v3.2（v3.1 + Priority A 実データ件数確定: items/versions 49→58, rules 54→47。シード生成・D1投入・検証により確定した実数値に全ドキュメントを統一）*
 *AI品質チェックガイドライン: 未入手・後追い反映*
 *Step 0 スパイクレポート: 19_STEP0_SPIKE_REPORT.md 参照*

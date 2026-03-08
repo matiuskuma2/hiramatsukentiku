@@ -233,9 +233,9 @@
 | `id` | TEXT PRIMARY KEY |
 | `item_code` | TEXT UNIQUE NOT NULL |
 
-**問題**: シードの `id` と `item_code` が別の値（例: `id: "item_foundation_lt60"`, `item_code: "foundation_lt60"`）。PKの `id` はプレフィックス `item_` 付き、`item_code` はプレフィックスなし。この命名規則が一貫しているか全49件を検証する必要がある。
+**問題**: シードの `id` と `item_code` が別の値（例: `id: "item_foundation_lt60"`, `item_code: "foundation_lt60"`）。PKの `id` はプレフィックス `item_` 付き、`item_code` はプレフィックスなし。この命名規則が一貫しているか全件を検証する必要がある。
 
-**検証結果**: 全49件を確認、`id = "item_" + item_code` の規則で一貫。ただし `import_seed_to_d1.ts` で両方のフィールドが確実に投入されるよう必須チェックが必要。
+**検証結果**: 全件を確認（※レビュー時点49件→実データ展開後58件に確定。05_v3.1参照）、`id = "item_" + item_code` の規則で一貫。ただし `import_seed_to_d1.ts` で両方のフィールドが確実に投入されるよう必須チェックが必要。
 
 ---
 

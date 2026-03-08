@@ -39,6 +39,9 @@
 | job_type 種別 | **4** | 11_ENUM_STATUS_SPEC.md |
 | warning_type 種別 | **9** | 11_ENUM_STATUS_SPEC.md |
 | system_settings 初期行 | **9** | 12_MIGRATION_SQL_FINAL.md |
+| **Priority A アイテム数** | **58**（v3.1確定: 旧記載49） | 05_MASTER_DATA_PLAN_v3.1, 実データ検証済 |
+| **Priority A バージョン数** | **58**（v3.1確定: 旧記載49） | 05_MASTER_DATA_PLAN_v3.1, 実データ検証済 |
+| **Priority A ルール数** | **47**（v3.1確定: 旧記載54） | 05_MASTER_DATA_PLAN_v3.1, 実データ検証済 |
 | ブロッカー（実装前必須） | **B-01〜B-04, B-06 = 5件** | 06_PHASE1_IMPLEMENTATION_PLAN_v3.md |
 | ブロッカー（並行解決可） | **B-05, B-07, B-08 = 3件** | 06_PHASE1_IMPLEMENTATION_PLAN_v3.md |
 | ブロッカー合計 | **B-01〜B-08 = 8件**（B-05完了済みのため実質 **7件**） | 15_MANAGEMENT_ITEMS.md |
@@ -966,5 +969,5 @@ UPDATE table SET ... WHERE id = ? AND version = ?
 
 *最終更新: 2026-03-08*
 *対象: AI駆動開発チーム（Cursor / Claude Code / Copilot 等）*
-*改訂番号: v3.1（Step 0 Spike 実測値追記 — D1 batch/TX 性能、楽観ロック、Partial Index、CHECK 制約、Queue 注意事項、CR 一覧）*
+*改訂番号: v3.2（v3.1 + Priority A 実データ件数確定: items/versions 58, rules 47。数値整合性チェック表に追加）*
 *前提ドキュメント: 01_DB_v4, 03_SCREEN_v3, 06_PLAN_v3, 11_ENUM, 12_MIGRATION, 14_DEP_MAP_v2, 15_MANAGEMENT_ITEMS, 16_UX_RISK_PREVENTION_v2, 17_AI_UTILIZATION_PLAN_v2, 19_STEP0_SPIKE_REPORT*

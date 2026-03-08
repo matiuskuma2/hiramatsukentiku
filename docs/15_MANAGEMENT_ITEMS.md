@@ -171,7 +171,7 @@
 | **状態** | 🔴 ブロック中（B-01, B-02, B-03, B-04 待ち） |
 | **入力** | migration SQL, 4 seed JSON (修正済み), admin メールアドレス |
 | **出力** | D1に25テーブル + マスタデータ + admin ユーザー |
-| **完了条件** | □ テーブル数=25 □ categories=10 □ items=49 □ versions=49 □ rules=54 □ admin=1 □ settings=9 □ CHECK制約テスト通過 □ 参照整合性OK |
+| **完了条件** | □ テーブル数=25 □ categories=10 □ **items=58** □ **versions=58** □ **rules=47** □ admin=1 □ settings=9 □ CHECK制約テスト通過 □ 参照整合性OK |（v3.1確定: 旧49→58, 旧54→47）|
 | **検証方法** | 検証SQL9本実行 + CHECK違反テスト + import --validate-only |
 | **担当ロール** | 開発者 |
 | **依存先** | STEP-00, B-01, B-02, B-03, B-04 |
@@ -349,7 +349,7 @@
 
 | 成果物 | 入力ドキュメント | 対応Step | 検証方法 |
 |--------|----------------|---------|---------|
-| migrations/0001_initial_schema.sql | 12_MIGRATION_SQL | STEP-01 | テーブル数=23 |
+| migrations/0001_initial_schema.sql | 12_MIGRATION_SQL | STEP-01 | テーブル数=25 |
 | src/schemas/enums.ts | 11_ENUM_STATUS_SPEC | STEP-00 | Zod enum数照合 |
 | src/middleware/auth.ts | 11_ENUM セクション10,23 | STEP-02 | 権限テスト |
 | src/middleware/rbac.ts | 11_ENUM セクション23 | STEP-02 | 4ロール×操作テスト |
@@ -427,6 +427,6 @@ ENV-01 ──> ENV-03 ──> STEP-10(AI)
 
 ---
 
-*最終更新: 2026-03-07*
-*改訂番号: v1（初版。06_v3, 14_v2 と連携）*
+*最終更新: 2026-03-08*
+*改訂番号: v1.1（Priority A 実データ件数確定: items/versions 49→58, rules 54→47。テーブル数 23→25 修正。〆06_v3, 14_v2 と連携）*
 *AI品質チェックガイドライン: 未入手・後追い反映*

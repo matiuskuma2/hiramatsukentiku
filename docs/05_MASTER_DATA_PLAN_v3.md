@@ -1,9 +1,10 @@
-# マスタデータ初期投入計画 v3（第3版）
+# マスタデータ初期投入計画 v3.1（第3.1版）
 
 > **改訂履歴**:
 > - v1: 初版作成
 > - v2: 07_CROSS_REVIEW_AND_RESOLUTIONS.md 反映。シードJSONファイルとの整合性確認。
 > - v3: 09_CROSS_REVIEW_PHASE2.md 反映。sort_order衝突解消（NEW-08）、シードデータ修正方針（NEW-01〜03）明記、import_seed_to_d1.ts の詳細バリデーション仕様（NEW-07,10,11）追記、テスト案件4追加。
+> - **v3.1: Priority A 実データ件数の正式確定。items/versions を 49→58 に、rules を 54→47 に修正。シード生成・D1投入・検証により確定した実数値に全ドキュメントを統一。**
 
 ## 概要
 
@@ -21,9 +22,9 @@
 | シードファイル | 対応テーブル | 状態 |
 |--------------|-------------|------|
 | seed_categories_priority_a.json | cost_categories | Priority A: 10工種（全37中） |
-| seed_items_priority_a.json | cost_master_items | Priority A: 49アイテム |
-| seed_item_versions_priority_a.json | cost_master_item_versions | Priority A: 49バージョン |
-| seed_rules_priority_a.json | cost_rule_conditions | Priority A: 54ルール |
+| seed_items_priority_a.json | cost_master_items | Priority A: **58アイテム**（v3.1確定） |
+| seed_item_versions_priority_a.json | cost_master_item_versions | Priority A: **58バージョン**（v3.1確定） |
+| seed_rules_priority_a.json | cost_rule_conditions | Priority A: **47ルール**（v3.1確定） |
 | (未作成) seed_quantity_rules.json | quantity_rule_tables | **Phase 1ではスキップ可** |
 | (未作成) seed_categories_priority_b.json | cost_categories | Priority B/C: 残27工種 |
 | (未作成) seed_items_priority_b.json | cost_master_items | Priority B: 約60アイテム |
@@ -243,20 +244,27 @@ IF seed_quantity_rules.json が存在しない:
 | cat_cleaning | cleaning | 280 | OK |
 | cat_waste_box | waste_box | 290 | OK |
 
-### Items（49アイテム）- カテゴリ別内訳
+### Items（58アイテム — v3.1確定）- カテゴリ別内訳
+
+> **v3.1 注記**: 設計書 v3 時点では「49アイテム」と記載していたが、10カテゴリの明細を
+> 設計仕様（02_COST_CALCULATION_DEFINITIONS_v2.md）に基づき正確に展開した結果、
+> 実データは **58アイテム** となった。差分9件はルール展開（瑕疵担保の面積帯別、
+> 産廃ボックスの県内/県外分離、屋根工事の詳細分割等）による正常な増加。
+> **58件を正とする。**
 
 | カテゴリ | アイテム数 | calculation_type 分布 |
 |---------|----------|---------------------|
-| foundation | 7 | range_lookup(3), per_meter(1), manual_quote(2), ~~fixed_amount(1)~~ **per_piece(1)** ← v3修正 |
-| carpentry | 7 | lineup_fixed(3), rule_lookup(2), per_m2(1) |
+| foundation | 7 | range_lookup(3), per_meter(1), manual_quote(2), **per_piece(1)** ← v3修正 |
+| carpentry | 6 | lineup_fixed(3), rule_lookup(2), per_m2(1) |
 | insulation | 5 | rule_lookup(5) |
 | shinkabe_panel | 4 | rule_lookup(2), per_tsubo(1), fixed_amount(1) |
 | electrical_facility | 6 | per_tsubo(2), fixed_amount(3), per_piece(1) |
-| roof | 7 | per_m2(1), manual_quote(2), per_meter(3), manual_quote(1) |
+| roof | 7 | per_m2(1), manual_quote(3), per_meter(3) |
 | site_management | 1 | per_tsubo(1) |
 | defect_insurance | 9 | fixed_amount(1), range_lookup(8) |
 | cleaning | 6 | per_m2(4), fixed_amount(1), per_piece(1) |
 | waste_box | 7 | package_with_delta(7) |
+| **合計** | **58** | |
 
 ---
 
@@ -264,11 +272,11 @@ IF seed_quantity_rules.json が存在しない:
 
 | フィールド | 保持率 | 備考 |
 |-----------|--------|------|
-| 項目名 (`item_name`) | 49/49 (100%) | 全件に値あり |
-| 現行金額 (`current_unit_price` / `current_fixed_amount`) | 49/49 (100%) | 排他的に設定 |
-| 備考 (`note`) | 17/49 (35%) | 元シートにも備考なしの項目が多い |
-| 発注先 (`vendor_name`) | 38/49 (78%) | 一部null |
-| 算出根拠 (`calculation_basis_note`) | 49/49 (100%) | 全件に値あり |
+| 項目名 (`item_name`) | 58/58 (100%) | 全件に値あり |
+| 現行金額 (`current_unit_price` / `current_fixed_amount`) | 58/58 (100%) | 排他的に設定 |
+| 備考 (`note`) | 20/58 (34%) | 元シートにも備考なしの項目が多い |
+| 発注先 (`vendor_name`) | 45/58 (78%) | 一部null |
+| 算出根拠 (`calculation_basis_note`) | 58/58 (100%) | 全件に値あり |
 
 ---
 
@@ -316,5 +324,5 @@ v2と同一（変更なし）。
 
 ---
 
-*最終更新: 2026-03-07*
-*改訂番号: v3（09_CROSS_REVIEW_PHASE2反映）*
+*最終更新: 2026-03-08*
+*改訂番号: v3.1（Priority A 実データ件数確定: items/versions 49→58, rules 54→47）*
