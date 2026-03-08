@@ -894,7 +894,77 @@ async function updateCostItem(
 
 ---
 
-*最終更新: 2026-03-07*
+## 15. Step 0 Spike 実測値と制約情報（2026-03-08 追記）
+
+> **CR-03 対応**: Step 0 スパイクで判明した D1 実測値と制約情報。実装時の設計判断に使用すること。
+
+### 15-1. D1 Batch 制限
+
+| 環境 | Batch 上限 | 実測値 | 推奨値 |
+|------|-----------|--------|--------|
+| ローカル D1 (SQLite) | 200+ (制限なし) | 200 items OK | - |
+| **本番 D1** | **100 statements** | 未計測 (ローカルのみ) | **80 以下を推奨** |
+
+- `system_settings.batch_size_limit = 100` は維持
+- 80 超過時は分割実行 (`chunk_size = 100`)
+- 37 原価項目 + 10 summaries + meta = **最大 49 statements** → 安全圏
+
+### 15-2. D1 Transaction 性能
+
+| Operation | Statements | Duration | Throughput |
+|-----------|-----------|----------|-----------|
+| Shadow Snapshot TX | 8 | **6ms** | 1,333 stmts/sec |
+| Full Snapshot (37 items) | 49 | **24ms** | 2,042 stmts/sec |
+| Regeneration | 40 | **12ms** | 3,333 stmts/sec |
+| Stress (10 x 50) | 500 | **143ms** | 3,497 stmts/sec |
+
+### 15-3. 楽観ロック確認結果
+
+```
+UPDATE table SET ... WHERE id = ? AND version = ?
+→ version 一致: changes = 1 (成功)
+→ version 不一致: changes = 0 (競合検知)
+→ アプリケーション側で changes === 0 なら 409 返却
+```
+
+### 15-4. Partial Index 確認結果
+
+- `CREATE INDEX ... WHERE status = 'active'` → **COVERING INDEX として動作**
+- `EXPLAIN QUERY PLAN` で `USING COVERING INDEX` 確認済み
+- `cost_snapshot_jobs`, `project_cost_items` 等で活用可
+
+### 15-5. CHECK 制約確認結果
+
+- D1 は全 CHECK 制約を正しく enforce
+- 不正値の INSERT/UPDATE は SQLite エラーで拒否される
+- Zod バリデーションと二重チェックとして機能
+
+### 15-6. Foreign Key 注意事項
+
+- ローカル D1 は `PRAGMA foreign_keys = ON` がデフォルト有効
+- **本番 D1 の FK 動作は要確認** — アプリケーション層でも FK 整合性チェックを実装すること
+
+### 15-7. Queue 注意事項
+
+- SP-03 はローカル DB シミュレーションのみ。本番 Cloudflare Queue テストは **Step 1-A で実施**
+- Queue 利用不可時の Fallback: `cost_snapshot_jobs` テーブルで同期実行管理
+- Queue Worker の Cold Start: 1-5 秒の遅延を見込む
+
+### 15-8. 変更要求一覧 (CR)
+
+| CR | 対象 | 内容 | 緊急度 |
+|---|---|---|---|
+| CR-01 | Migration | テーブル 2 件追加 (cost_inclusion_rules, lineup_option_groups) | Phase 1-A |
+| CR-02 | DB Schema | project_cost_items に override_reason_category 追加 | Phase 1-A |
+| CR-03 | 本ドキュメント | D1 実測値の追記 (本セクション) | 完了 |
+| CR-04 | 06_PLAN | SP-03 Queue 本番テストを Step 1-A タスクに追加 | Phase 1-A |
+| CR-05 | 08_RUNBOOK | D1 batch 分割戦略のパラメータ追記 | Low |
+| CR-06 | 10_CHECKLIST | SP-01〜07 + DEEP テスト結果反映 | 完了 |
+| CR-07 | 11_ENUM | override_reason_category の ENUM 値定義追加 | Phase 1-A |
+
+---
+
+*最終更新: 2026-03-08*
 *対象: AI駆動開発チーム（Cursor / Claude Code / Copilot 等）*
-*改訂番号: v3（正式改訂 — 禁止事項15項目、絶対ルール10項目、UX運用ルール6項目、数値整合性、Step 0境界明確化）*
-*前提ドキュメント: 01_DB_v4, 03_SCREEN_v3, 06_PLAN_v3, 11_ENUM, 12_MIGRATION, 14_DEP_MAP_v2, 15_MANAGEMENT_ITEMS, 16_UX_RISK_PREVENTION_v2, 17_AI_UTILIZATION_PLAN_v2*
+*改訂番号: v3.1（Step 0 Spike 実測値追記 — D1 batch/TX 性能、楽観ロック、Partial Index、CHECK 制約、Queue 注意事項、CR 一覧）*
+*前提ドキュメント: 01_DB_v4, 03_SCREEN_v3, 06_PLAN_v3, 11_ENUM, 12_MIGRATION, 14_DEP_MAP_v2, 15_MANAGEMENT_ITEMS, 16_UX_RISK_PREVENTION_v2, 17_AI_UTILIZATION_PLAN_v2, 19_STEP0_SPIKE_REPORT*

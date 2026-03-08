@@ -1,0 +1,30 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "hiramatsu-cost",
+  "compatibility_date": "2026-03-08",
+  "pages_build_output_dir": "./dist",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // D1 Database binding
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "hiramatsu-cost-production",
+      "database_id": "placeholder-will-be-set-after-d1-create"
+    }
+  ]
+
+  // Queue binding (Phase 1 - will be enabled after spike)
+  // "queues": {
+  //   "producers": [{ "queue": "SNAPSHOT_QUEUE", "binding": "SNAPSHOT_QUEUE" }],
+  //   "consumers": [{ "queue": "SNAPSHOT_QUEUE", "max_batch_size": 1 }]
+  // },
+
+  // R2 Storage (Phase 1 - will be enabled later)
+  // "r2_buckets": [
+  //   {
+  //     "binding": "STORAGE",
+  //     "bucket_name": "hiramatsu-cost-bucket"
+  //   }
+  // ]
+}

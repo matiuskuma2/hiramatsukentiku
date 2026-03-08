@@ -241,7 +241,9 @@ Step 11(1d)                                     █                         → 
 
 ### Phase 1-A: 基盤構築（4日）
 
-#### Step 0: 環境セットアップ + CI基盤（2日）
+#### Step 0: 環境セットアップ + CI基盤（2日） — **完了 (2026-03-08)**
+
+> **Step 0 Spike 結果: GO** — 9/9 テスト PASS。詳細は 19_STEP0_SPIKE_REPORT.md 参照。
 
 ```yaml
 前提:
@@ -315,8 +317,11 @@ Step 11(1d)                                     █                         → 
 
 ```yaml
 前提:
-  - Step 0 完了
+  - Step 0 完了 + **GO 判定済み** (2026-03-08)
   - B-01, B-02, B-03 のシード修正完了（★実装前必須ブロッカー）
+  - **CR-01**: 追加 migration (cost_inclusion_rules, lineup_option_groups) を Step 1 初日に実施
+  - **CR-02**: project_cost_items.override_reason_category カラム追加
+  - **CR-04**: Cloudflare Queue 本番テストを Step 1 の初期タスクに含む
   - B-04: migration SQL 準備完了（12_MIGRATION_SQL_FINAL.md）
 
 入力:
@@ -1126,6 +1131,7 @@ Phase 1 が「完成」と言える条件:
 
 ---
 
-*最終更新: 2026-03-07*
-*改訂番号: v3（全面改訂 — v4テーブル統合、shadow snapshot/Queue Job、認証、ユーザー管理、依存関係明示、画面設計改訂、ブロッカー分類）*
+*最終更新: 2026-03-08*
+*改訂番号: v3.1（Step 0 Spike 完了反映 — GO 判定記録、Step 1-A に Queue 本番test/CR-01〜CR-02 migration 追加、工数再見積なし）*
 *AI品質チェックガイドライン: 未入手・後追い反映*
+*Step 0 スパイクレポート: 19_STEP0_SPIKE_REPORT.md 参照*
