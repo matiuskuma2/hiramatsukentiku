@@ -3,7 +3,7 @@
 // - Enqueue (POST /api/projects/:id/snapshots/enqueue)
 // - Status  (GET  /api/projects/:id/snapshots)
 // - Detail  (GET  /api/projects/:id/snapshots/:snapshotId)
-// 条件: project 作成と snapshot enqueue は分離実装
+// Step 2.5: status遷移修正, warnings shape, error code policy
 // ==============================================
 import { Hono } from 'hono';
 import type { AppEnv, ApiResponse } from '../types/bindings';
@@ -11,6 +11,10 @@ import { resolveUser, requireRole } from '../middleware/auth';
 import { createQueueService, hasActiveJob, completeJob, failJob } from '../services/queueService';
 import { generateSnapshot } from '../engine/snapshotGenerator';
 import { SnapshotJobType } from '../schemas/enums';
+import {
+  validationError, notFoundError, conflictError,
+  businessRuleError, internalError,
+} from '../lib/errors';
 
 const snapshotRoutes = new Hono<AppEnv>();
 
@@ -20,6 +24,17 @@ snapshotRoutes.use('*', resolveUser);
 // POST /api/projects/:id/snapshots/enqueue
 // 権限: admin, manager, estimator
 // Body: { job_type: 'initial' | 'regenerate_*' }
+//
+// Status transition:
+//   enqueue時: project.status → 'calculating'
+//   sync完了時: project.status → 'in_progress' (snapshotGenerator内で設定)
+//   失敗時: project.status → 元のstatusに戻す
+//
+// Error codes:
+//   400 - invalid project ID, invalid job_type
+//   404 - project not found
+//   409 - duplicate active job
+//   422 - initial with existing snapshot, invalid state for enqueue
 // --------------------------------------------------
 snapshotRoutes.post('/:id/snapshots/enqueue', requireRole('admin', 'manager', 'estimator'), async (c) => {
   const db = c.env.DB;
@@ -27,48 +42,58 @@ snapshotRoutes.post('/:id/snapshots/enqueue', requireRole('admin', 'manager', 'e
   const projectId = parseInt(c.req.param('id'));
 
   if (isNaN(projectId)) {
-    return c.json({ success: false, error: 'Invalid project ID' }, 400);
+    const err = validationError('Invalid project ID: must be a number');
+    return c.json(err.body, err.status);
   }
 
   // Verify project exists
   const project = await db.prepare('SELECT id, status, current_snapshot_id FROM projects WHERE id = ?')
     .bind(projectId).first() as any;
   if (!project) {
-    return c.json({ success: false, error: `Project not found: ${projectId}` }, 404);
+    const err = notFoundError('Project', projectId);
+    return c.json(err.body, err.status);
   }
 
   // Parse request body
   const body = await c.req.json().catch(() => ({}));
   const jobType = body.job_type || 'initial';
   
-  // Validate job_type
+  // Validate job_type (400)
   const validJobTypes = SnapshotJobType.options;
   if (!validJobTypes.includes(jobType)) {
-    return c.json({ 
-      success: false, 
-      error: `Invalid job_type: ${jobType}. Must be one of: ${validJobTypes.join(', ')}` 
-    }, 400);
+    const err = validationError(
+      `Invalid job_type: ${jobType}. Must be one of: ${validJobTypes.join(', ')}`,
+      { valid_job_types: validJobTypes }
+    );
+    return c.json(err.body, err.status);
   }
 
-  // If initial and project already has snapshot, suggest regenerate
+  // Business rule: initial with existing snapshot → 422
   if (jobType === 'initial' && project.current_snapshot_id) {
-    return c.json({
-      success: false,
-      error: 'Project already has a snapshot. Use regenerate_* job_type instead.',
-      data: { current_snapshot_id: project.current_snapshot_id },
-    }, 409);
+    const err = businessRuleError(
+      'Project already has a snapshot. Use regenerate_* job_type instead.',
+      { current_snapshot_id: project.current_snapshot_id, suggestion: 'regenerate_auto_only' }
+    );
+    return c.json(err.body, err.status);
   }
 
-  // Duplicate prevention: check for active jobs
+  // Duplicate prevention: check for active jobs (409)
   const hasActive = await hasActiveJob(db, projectId);
   if (hasActive) {
-    return c.json({
-      success: false,
-      error: 'Active snapshot job already exists for this project. Wait for it to complete.',
-    }, 409);
+    const err = conflictError(
+      'Active snapshot job already exists for this project. Wait for it to complete.',
+      'DUPLICATE_ENQUEUE'
+    );
+    return c.json(err.body, err.status);
   }
 
-  // Enqueue job
+  // === 2.5-A: Set project.status → 'calculating' before enqueue ===
+  const previousStatus = project.status;
+  await db.prepare(
+    "UPDATE projects SET status = 'calculating', updated_at = datetime('now') WHERE id = ?"
+  ).bind(projectId).run();
+
+  // Enqueue job (DB insert + queue/sync routing)
   const queueService = createQueueService(c.env);
   const job = await queueService.sendSnapshotJob({
     project_id: projectId,
@@ -77,9 +102,13 @@ snapshotRoutes.post('/:id/snapshots/enqueue', requireRole('admin', 'manager', 'e
     timestamp: Date.now(),
   });
 
-  // In sync_fallback mode, execute immediately
+  // === sync_fallback mode: execute immediately ===
   if (job.mode === 'sync') {
     try {
+      // 2.5-E: sync path also passes through queued→running→completed
+      //   queueService.sendSnapshotJob: INSERT 'queued' → UPDATE 'running'
+      //   generateSnapshot: executes and sets project.status = 'in_progress'
+      //   completeJob: UPDATE status = 'completed'
       const result = await generateSnapshot(db, projectId, jobType, job.job_id);
       await completeJob(db, job.job_id, result.snapshot_id);
 
@@ -87,7 +116,10 @@ snapshotRoutes.post('/:id/snapshots/enqueue', requireRole('admin', 'manager', 'e
       await db.prepare(`
         INSERT INTO project_audit_logs (project_id, action, target_type, target_id, after_value, changed_by, changed_at)
         VALUES (?, 'snapshot', 'snapshot', ?, ?, ?, datetime('now'))
-      `).bind(projectId, String(result.snapshot_id), JSON.stringify(result), user.id).run();
+      `).bind(projectId, String(result.snapshot_id), JSON.stringify({
+        ...result,
+        status_transition: `${previousStatus} → calculating → in_progress`,
+      }), user.id).run();
 
       return c.json({
         success: true,
@@ -99,15 +131,28 @@ snapshotRoutes.post('/:id/snapshots/enqueue', requireRole('admin', 'manager', 'e
           items_created: result.items_created,
           summaries_created: result.summaries_created,
           warnings_created: result.warnings_created,
+          total_amount: result.total_amount,
+          duration_ms: result.duration_ms,
+          status_transition: {
+            before: previousStatus,
+            during: 'calculating',
+            after: 'in_progress',
+          },
         },
       } satisfies ApiResponse, 201);
     } catch (e: any) {
       await failJob(db, job.job_id, e.message);
-      return c.json({
-        success: false,
-        error: `Snapshot generation failed: ${e.message}`,
-        data: { job_id: job.job_id },
-      }, 500);
+
+      // Restore project status to previous state on failure
+      await db.prepare(
+        "UPDATE projects SET status = ?, updated_at = datetime('now') WHERE id = ?"
+      ).bind(previousStatus, projectId).run();
+
+      const err = internalError(`Snapshot generation failed: ${e.message}`, {
+        job_id: job.job_id,
+        status_restored_to: previousStatus,
+      });
+      return c.json(err.body, err.status);
     }
   }
 
@@ -118,6 +163,11 @@ snapshotRoutes.post('/:id/snapshots/enqueue', requireRole('admin', 'manager', 'e
       job_id: job.job_id,
       mode: 'queue',
       status: 'queued',
+      status_transition: {
+        before: previousStatus,
+        current: 'calculating',
+        next_on_complete: 'in_progress',
+      },
       message: 'Snapshot job enqueued. Poll GET /api/projects/:id/snapshots/jobs/:jobId for status.',
     },
   } satisfies ApiResponse, 202);
@@ -132,7 +182,8 @@ snapshotRoutes.get('/:id/snapshots', async (c) => {
   const projectId = parseInt(c.req.param('id'));
 
   if (isNaN(projectId)) {
-    return c.json({ success: false, error: 'Invalid project ID' }, 400);
+    const err = validationError('Invalid project ID');
+    return c.json(err.body, err.status);
   }
 
   const result = await db.prepare(`
@@ -156,6 +207,7 @@ snapshotRoutes.get('/:id/snapshots', async (c) => {
 // GET /api/projects/:id/snapshots/:snapshotId
 // 権限: all (viewer以上)
 // Detail: snapshot + items + summaries + warnings
+// 2.5-C: warnings にsource, status を含む
 // --------------------------------------------------
 snapshotRoutes.get('/:id/snapshots/:snapshotId', async (c) => {
   const db = c.env.DB;
@@ -163,7 +215,8 @@ snapshotRoutes.get('/:id/snapshots/:snapshotId', async (c) => {
   const snapshotId = parseInt(c.req.param('snapshotId'));
 
   if (isNaN(projectId) || isNaN(snapshotId)) {
-    return c.json({ success: false, error: 'Invalid ID' }, 400);
+    const err = validationError('Invalid ID: project_id and snapshot_id must be numbers');
+    return c.json(err.body, err.status);
   }
 
   // Fetch snapshot
@@ -172,7 +225,8 @@ snapshotRoutes.get('/:id/snapshots/:snapshotId', async (c) => {
   ).bind(snapshotId, projectId).first();
 
   if (!snapshot) {
-    return c.json({ success: false, error: 'Snapshot not found' }, 404);
+    const err = notFoundError('Snapshot', snapshotId);
+    return c.json(err.body, err.status);
   }
 
   // Fetch items
@@ -183,6 +237,7 @@ snapshotRoutes.get('/:id/snapshots/:snapshotId', async (c) => {
            manual_quantity, manual_unit_price, manual_amount,
            final_quantity, final_unit_price, final_amount,
            review_status, override_reason, override_reason_category,
+           vendor_name, calculation_basis_note, warning_text,
            sort_order
     FROM project_cost_items
     WHERE snapshot_id = ? AND project_id = ?
@@ -199,13 +254,17 @@ snapshotRoutes.get('/:id/snapshots/:snapshotId', async (c) => {
     ORDER BY category_code
   `).bind(projectId).all();
 
-  // Fetch warnings
+  // Fetch warnings — 2.5-C: include source and status fields
   const warnings = await db.prepare(`
     SELECT id, warning_type, severity, category_code, master_item_id,
-           message, recommendation, detail_json, is_resolved
+           message, recommendation, detail_json,
+           source, status, is_resolved,
+           resolved_by, resolved_at, resolved_note
     FROM project_warnings
     WHERE project_id = ? AND snapshot_id = ?
-    ORDER BY severity DESC, warning_type
+    ORDER BY 
+      CASE severity WHEN 'error' THEN 1 WHEN 'warning' THEN 2 WHEN 'info' THEN 3 END,
+      warning_type
   `).bind(projectId, snapshotId).all();
 
   return c.json({
@@ -234,12 +293,18 @@ snapshotRoutes.get('/:id/snapshots/jobs/:jobId', async (c) => {
   const projectId = parseInt(c.req.param('id'));
   const jobId = parseInt(c.req.param('jobId'));
 
+  if (isNaN(projectId) || isNaN(jobId)) {
+    const err = validationError('Invalid ID: project_id and job_id must be numbers');
+    return c.json(err.body, err.status);
+  }
+
   const job = await db.prepare(
     'SELECT * FROM cost_snapshot_jobs WHERE id = ? AND project_id = ?'
   ).bind(jobId, projectId).first();
 
   if (!job) {
-    return c.json({ success: false, error: 'Job not found' }, 404);
+    const err = notFoundError('Job', jobId);
+    return c.json(err.body, err.status);
   }
 
   return c.json({

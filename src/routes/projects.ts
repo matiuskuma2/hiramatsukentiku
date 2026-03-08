@@ -1,11 +1,13 @@
 // ==============================================
 // Project API Routes
 // 条件: project 作成と snapshot enqueue は分離
+// Step 2.5-D: API Error Code Policy 適用
 // ==============================================
 import { Hono } from 'hono';
 import type { AppEnv, ApiResponse } from '../types/bindings';
 import { resolveUser, requireRole } from '../middleware/auth';
 import { ProjectStatus, Lineup } from '../schemas/enums';
+import { validationError, notFoundError, conflictError } from '../lib/errors';
 import { z } from 'zod';
 
 const projectRoutes = new Hono<AppEnv>();
@@ -86,13 +88,15 @@ projectRoutes.get('/:id', async (c) => {
   const id = parseInt(c.req.param('id'));
 
   if (isNaN(id)) {
-    return c.json({ success: false, error: 'Invalid project ID' }, 400);
+    const err = validationError('Invalid project ID: must be a number');
+    return c.json(err.body, err.status);
   }
 
   const project = await db.prepare('SELECT * FROM projects WHERE id = ?').bind(id).first();
 
   if (!project) {
-    return c.json({ success: false, error: `Project not found: ${id}` }, 404);
+    const err = notFoundError('Project', id);
+    return c.json(err.body, err.status);
   }
 
   return c.json({
@@ -113,21 +117,19 @@ projectRoutes.post('/', requireRole('admin', 'manager', 'estimator'), async (c) 
   // Validate
   const parsed = CreateProjectSchema.safeParse(body);
   if (!parsed.success) {
-    return c.json({
-      success: false,
-      error: 'Validation error',
-      data: parsed.error.flatten().fieldErrors,
-    }, 400);
+    const err = validationError('Request validation failed', parsed.error.flatten().fieldErrors);
+    return c.json(err.body, err.status);
   }
 
   const d = parsed.data;
 
-  // Check unique project_code
+  // Check unique project_code (409 Conflict)
   const existing = await db.prepare(
     'SELECT id FROM projects WHERE project_code = ?'
   ).bind(d.project_code).first();
   if (existing) {
-    return c.json({ success: false, error: `Project code already exists: ${d.project_code}` }, 409);
+    const err = conflictError(`Project code already exists: ${d.project_code}`);
+    return c.json(err.body, err.status);
   }
 
   // Insert project

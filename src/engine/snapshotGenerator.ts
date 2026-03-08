@@ -20,7 +20,9 @@
 //   reviewed_by, reviewed_at, version, updated_at
 //
 // project_warnings: id, project_id, snapshot_id, category_code, master_item_id,
-//   warning_type, severity, message, recommendation, detail_json, is_resolved,
+//   warning_type, severity, message, recommendation, detail_json,
+//   source ('system'|'ai'|'regeneration'|'manual'),
+//   status ('open'|'resolved'|'ignored'), is_resolved,
 //   resolved_by, resolved_at, resolved_note, created_at
 // ==============================================
 
@@ -123,6 +125,7 @@ export async function generateSnapshot(
         message: w.message,
         recommendation: w.recommendation || null,
         detail_json: JSON.stringify(w.detail || {}),
+        source: w.source || 'system',
       });
     }
   }
@@ -248,19 +251,22 @@ export async function generateSnapshot(
       INSERT INTO project_warnings (
         project_id, snapshot_id, category_code, master_item_id,
         warning_type, severity, message, recommendation, detail_json,
-        is_resolved, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, datetime('now'))
+        source, status, is_resolved, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', 0, datetime('now'))
     `).bind(
       w.project_id, snapshotId, w.category_code, w.master_item_id,
-      w.warning_type, w.severity, w.message, w.recommendation, w.detail_json
+      w.warning_type, w.severity, w.message, w.recommendation, w.detail_json,
+      w.source || 'system'
     ));
   }
 
   // Update project: set current_snapshot_id, increment revision_no
+  // NOTE: status は 'in_progress' に設定（snapshot生成完了 = 見積作業中）
+  // 'calculating' は Queue 非同期処理中のみ使用
   stmts2.push(db.prepare(`
     UPDATE projects 
     SET current_snapshot_id = ?, revision_no = ?, 
-        status = 'calculating', updated_at = datetime('now')
+        status = 'in_progress', updated_at = datetime('now')
     WHERE id = ?
   `).bind(snapshotId, snapshotNo, projectId));
 
@@ -299,6 +305,7 @@ interface EvaluationResult {
     message: string;
     recommendation?: string;
     detail?: any;
+    source?: 'system' | 'ai' | 'regeneration' | 'manual';
   }>;
 }
 
@@ -351,12 +358,14 @@ function evaluateItem(project: any, item: any, rules: any[]): EvaluationResult {
               type: 'manual_required', severity: 'warning',
               message: action.message || `${item.item_name}: 手動確認が必要です`,
               recommendation: '手動で金額を入力してください',
+              source: 'system',
             });
             break;
           case 'show_warning':
             warnings.push({
               type: 'condition_unmet', severity: action.severity || 'info',
               message: action.message || `${item.item_name}: 注意事項があります`,
+              source: 'system',
             });
             break;
           case 'add_amount':
@@ -369,6 +378,7 @@ function evaluateItem(project: any, item: any, rules: any[]): EvaluationResult {
         type: 'condition_unmet', severity: 'warning',
         message: `Rule error for ${item.item_name}: ${(e as Error).message}`,
         detail: { rule_id: rule.id },
+        source: 'system',
       });
     }
   }
@@ -380,6 +390,7 @@ function evaluateItem(project: any, item: any, rules: any[]): EvaluationResult {
       type: 'manual_required', severity: 'warning',
       message: `${item.item_name}: 手動見積もりが必要 (${item.calculation_type})`,
       recommendation: '業者見積もりを取得してください',
+      source: 'system',
     });
   }
 
@@ -388,6 +399,7 @@ function evaluateItem(project: any, item: any, rules: any[]): EvaluationResult {
       type: 'missing_input', severity: 'warning',
       message: `${item.item_name}: 金額が0円です。入力値を確認してください`,
       detail: { quantity, unit_price: unitPrice, fixed_amount: fixedAmount, qty_ref: qtyRef },
+      source: 'system',
     });
   }
 

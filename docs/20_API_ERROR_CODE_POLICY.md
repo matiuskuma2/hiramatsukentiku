@@ -1,0 +1,45 @@
+-- ============================================================
+-- API Error Code Policy (Step 2.5-D)
+-- 
+-- HTTP Status Code → Error Code Mapping
+-- ============================================================
+--
+-- | HTTP | Error Code                | 説明                                    |
+-- |------|---------------------------|-----------------------------------------|
+-- | 400  | VALIDATION_ERROR          | リクエスト不正 (型/必須/範囲)            |
+-- | 401  | UNAUTHENTICATED           | 認証なし (email未取得, token期限切れ)     |
+-- | 403  | INSUFFICIENT_PERMISSION   | 権限不足 (role が許可リスト外)            |
+-- | 404  | NOT_FOUND                 | リソース不在                              |
+-- | 409  | CONFLICT                  | 競合一般 (project_code 重複 etc.)        |
+-- | 409  | DUPLICATE_ENQUEUE         | 同一案件で active job が既に存在          |
+-- | 409  | OPTIMISTIC_LOCK_CONFLICT  | バージョン不一致 (楽観ロック)             |
+-- | 409  | STATE_MISMATCH            | 状態不整合 (e.g. archived project)       |
+-- | 422  | BUSINESS_RULE_VIOLATION   | ビジネスルール違反                        |
+-- |      |                           |   - initial で既存 snapshot あり          |
+-- |      |                           |   - 無効な状態遷移                        |
+-- | 500  | INTERNAL_ERROR            | 予期しないサーバーエラー                  |
+--
+-- Response Shape (all errors):
+-- {
+--   "success": false,
+--   "error": "Human-readable message",
+--   "error_code": "VALIDATION_ERROR",
+--   "data": { /* optional: details, field errors, suggestions */ }
+-- }
+--
+-- 適用ルート一覧:
+--   POST /api/projects         → 400 (validation), 409 (duplicate code)
+--   GET  /api/projects/:id     → 400 (invalid id), 404 (not found)
+--   POST /api/projects/:id/snapshots/enqueue
+--                              → 400 (invalid id/job_type)
+--                              → 404 (project not found)
+--                              → 409 (duplicate active job)
+--                              → 422 (initial + existing snapshot)
+--                              → 500 (generation failed, status restored)
+--   GET  /api/projects/:id/snapshots/:snapshotId
+--                              → 400 (invalid ids), 404 (snapshot not found)
+--   GET  /api/master/*         → 404 (category/item not found)
+--   Auth middleware             → 401 (no email), 403 (user not found/inactive, role mismatch)
+--
+-- Implementation: src/lib/errors.ts
+-- ============================================================

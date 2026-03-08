@@ -2,9 +2,10 @@
 // Auth Middleware
 // - Production: CF Access header (CF-Access-Authenticated-User-Email)
 // - Development: DEV_USER_EMAIL from .dev.vars
+// Step 2.5-D: API Error Code Policy 適用
 // ==============================================
-import { Hono } from 'hono';
 import type { AppEnv } from '../types/bindings';
+import { unauthenticatedError, forbiddenError } from '../lib/errors';
 
 /**
  * Resolve current user from CF Access header or DEV_USER_EMAIL
@@ -17,7 +18,8 @@ export async function resolveUser(c: any, next: () => Promise<void>) {
   const email = cfEmail || devEmail;
 
   if (!email) {
-    return c.json({ success: false, error: 'Unauthorized: no email found' }, 401);
+    const err = unauthenticatedError('No authentication email found. Provide CF-Access header or DEV_USER_EMAIL.');
+    return c.json(err.body, err.status);
   }
 
   // Look up user in DB
@@ -26,7 +28,8 @@ export async function resolveUser(c: any, next: () => Promise<void>) {
   ).bind(email).first() as any;
 
   if (!user) {
-    return c.json({ success: false, error: `User not found: ${email}` }, 403);
+    const err = forbiddenError(`User not found or inactive: ${email}`);
+    return c.json(err.body, err.status);
   }
 
   c.set('currentUser', {
@@ -45,13 +48,12 @@ export function requireRole(...allowedRoles: string[]) {
   return async (c: any, next: () => Promise<void>) => {
     const user = c.get('currentUser');
     if (!user) {
-      return c.json({ success: false, error: 'Unauthorized' }, 401);
+      const err = unauthenticatedError('Authentication required');
+      return c.json(err.body, err.status);
     }
     if (!allowedRoles.includes(user.role)) {
-      return c.json({ 
-        success: false, 
-        error: `Forbidden: role '${user.role}' not in [${allowedRoles.join(', ')}]` 
-      }, 403);
+      const err = forbiddenError(`Role '${user.role}' is not permitted. Required: [${allowedRoles.join(', ')}]`);
+      return c.json(err.body, err.status);
     }
     await next();
   };

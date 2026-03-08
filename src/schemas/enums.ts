@@ -56,6 +56,10 @@ export const WarningType = z.enum([
 
 export const Severity = z.enum(['info', 'warning', 'error']);
 
+// === 7b. project_warnings: source / status (Step 2.5-C) ===
+export const WarningSource = z.enum(['system', 'ai', 'regeneration', 'manual']);
+export const WarningStatus = z.enum(['open', 'resolved', 'ignored']);
+
 // === 8. master_change_logs テーブル ===
 export const ChangeType = z.enum(['create', 'update', 'deactivate', 'price_change', 'rule_change']);
 
@@ -147,6 +151,8 @@ export const ENUM_COUNT = {
   ReviewStatus: ReviewStatus.options.length,          // 4
   WarningType: WarningType.options.length,            // 9
   Severity: Severity.options.length,                  // 3
+  WarningSource: WarningSource.options.length,          // 4
+  WarningStatus: WarningStatus.options.length,          // 3
   ChangeType: ChangeType.options.length,              // 5
   AuditAction: AuditAction.options.length,            // 7
   AuditTargetType: AuditTargetType.options.length,    // 5
@@ -165,5 +171,5 @@ export const ENUM_COUNT = {
   InclusionType: InclusionType.options.length,                  // 4
   TargetSummaryGroup: TargetSummaryGroup.options.length,        // 6
   OverrideReasonCategory: OverrideReasonCategory.options.length, // 8
-  _total: 33 // 33 enum definitions
+  _total: 35 // 35 enum definitions (33 + WarningSource + WarningStatus)
 };
