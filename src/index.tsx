@@ -4,6 +4,7 @@ import { createQueueService, hasActiveJob, completeJob, failJob } from './servic
 import masterRoutes from './routes/master';
 import projectRoutes from './routes/projects';
 import snapshotRoutes from './routes/snapshots';
+import costItemRoutes from './routes/costItems';
 
 type Bindings = {
   DB: D1Database;
@@ -20,14 +21,15 @@ app.use('/api/*', cors());
 app.route('/api/master', masterRoutes);
 app.route('/api/projects', projectRoutes);
 app.route('/api/projects', snapshotRoutes);
+app.route('/api/projects', costItemRoutes);
 
 // === Health Check ===
 app.get('/api/health', (c) => {
   return c.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    version: '0.2.5-step2.5',
-    phase: 'step-2.5-fixes',
+    version: '0.3.1-step3',
+    phase: 'step-3-m3-milestone',
   });
 });
 

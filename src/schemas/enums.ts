@@ -93,6 +93,14 @@ export const DiffType = z.enum([
   'fixed_amount_changed', 'selection_changed', 'item_added', 'item_removed'
 ]);
 
+export const DiffResolutionStatus = z.enum([
+  'pending', 'adopted', 'kept', 'dismissed', 'manual_adjusted'
+]);
+
+export const DiffResolutionAction = z.enum([
+  'adopt_candidate', 'keep_current', 'dismiss', 'manual_adjust'
+]);
+
 // === 14. project_sales_estimates テーブル ===
 export const EstimateType = z.enum(['rough', 'internal', 'contract', 'execution']);
 
@@ -162,6 +170,8 @@ export const ENUM_COUNT = {
   SnapshotJobStatus: SnapshotJobStatus.options.length, // 5
   SnapshotStatus: SnapshotStatus.options.length,      // 3
   DiffType: DiffType.options.length,                  // 7
+  DiffResolutionStatus: DiffResolutionStatus.options.length, // 5
+  DiffResolutionAction: DiffResolutionAction.options.length, // 4
   EstimateType: EstimateType.options.length,          // 4
   SourceType: SourceType.options.length,              // 5
   ReferenceType: ReferenceType.options.length,        // 6
@@ -171,5 +181,5 @@ export const ENUM_COUNT = {
   InclusionType: InclusionType.options.length,                  // 4
   TargetSummaryGroup: TargetSummaryGroup.options.length,        // 6
   OverrideReasonCategory: OverrideReasonCategory.options.length, // 8
-  _total: 35 // 35 enum definitions (33 + WarningSource + WarningStatus)
+  _total: 37 // 37 enum definitions
 };
