@@ -70,11 +70,14 @@ function layout(title: string, bodyContent: string, activeTab: string = '') {
             <a href="/ui/projects" class="px-3 py-2 rounded-md text-sm font-medium \${activeTab === 'projects' ? 'bg-hm-50 text-hm-700' : 'text-gray-600 hover:bg-gray-100'}">
               <i class="fas fa-folder-open mr-1"></i>案件一覧
             </a>
+            <a href="/ui/manual" class="px-3 py-2 rounded-md text-sm font-medium \${activeTab === 'manual' ? 'bg-hm-50 text-hm-700' : 'text-gray-600 hover:bg-gray-100'}">
+              <i class="fas fa-book mr-1"></i>使い方ガイド
+            </a>
           </div>
         </div>
         <div class="flex items-center space-x-3">
-          <span class="text-xs text-gray-400">v0.8.0 Step 8</span>
-          <a href="/api/health" target="_blank" class="text-xs text-gray-400 hover:text-gray-600"><i class="fas fa-heartbeat mr-1"></i>API</a>
+          <a href="/ui/manual" class="text-hm-600 hover:text-hm-800 text-sm font-medium px-2 py-1 rounded hover:bg-hm-50 transition md:hidden"><i class="fas fa-question-circle mr-1"></i>ヘルプ</a>
+          <span class="text-xs text-gray-400">v0.8.1</span>
         </div>
       </div>
     </div>
@@ -932,6 +935,365 @@ uiRoutes.get('/ui/projects/:id', (c) => {
     }
     </script>
   `, 'projects'));
+});
+
+
+// ==========================================================
+// /ui/manual — User Manual Page (Completely Rewritten v2)
+// ==========================================================
+uiRoutes.get('/ui/manual', (c) => {
+  return c.html(layout('使い方ガイド', `
+    <div class="max-w-4xl mx-auto">
+
+      <!-- Hero / Quick Start -->
+      <div class="bg-gradient-to-br from-hm-600 to-hm-800 rounded-2xl p-6 md:p-8 mb-8 text-white">
+        <h1 class="text-2xl md:text-3xl font-bold mb-2"><i class="fas fa-book-open mr-2"></i>使い方ガイド</h1>
+        <p class="text-hm-100 text-sm md:text-base mb-5">平松建築 概算原価管理システム -- 初めての方はここから</p>
+        <div class="bg-white/15 backdrop-blur rounded-xl p-5">
+          <h2 class="font-bold text-base mb-3"><i class="fas fa-bolt mr-1"></i>3分で分かるクイックスタート</h2>
+          <div class="grid grid-cols-1 md:grid-cols-5 gap-3 text-center text-xs md:text-sm">
+            <div class="bg-white/20 rounded-lg p-3">
+              <div class="text-2xl mb-1"><i class="fas fa-plus-circle"></i></div>
+              <div class="font-bold">STEP 1</div>
+              <div class="text-hm-100">案件を作る</div>
+              <div class="text-hm-200 text-xs mt-1">案件名・ラインナップ<br>坪数を入力</div>
+            </div>
+            <div class="bg-white/20 rounded-lg p-3">
+              <div class="text-2xl mb-1"><i class="fas fa-pencil-alt"></i></div>
+              <div class="font-bold">STEP 2</div>
+              <div class="text-hm-100">建物情報を入力</div>
+              <div class="text-hm-200 text-xs mt-1">「案件情報」タブで<br>面積・仕様を入力</div>
+            </div>
+            <div class="bg-white/20 rounded-lg p-3">
+              <div class="text-2xl mb-1"><i class="fas fa-calculator"></i></div>
+              <div class="font-bold">STEP 3</div>
+              <div class="text-hm-100">初期計算</div>
+              <div class="text-hm-200 text-xs mt-1">緑の「初期計算」ボタン<br>→58工種を自動算出</div>
+            </div>
+            <div class="bg-white/20 rounded-lg p-3">
+              <div class="text-2xl mb-1"><i class="fas fa-edit"></i></div>
+              <div class="font-bold">STEP 4</div>
+              <div class="text-hm-100">個別に修正</div>
+              <div class="text-hm-200 text-xs mt-1">「工種明細」タブで<br>1つずつ見積を調整</div>
+            </div>
+            <div class="bg-white/20 rounded-lg p-3">
+              <div class="text-2xl mb-1"><i class="fas fa-chart-pie"></i></div>
+              <div class="font-bold">STEP 5</div>
+              <div class="text-hm-100">売価と比較</div>
+              <div class="text-hm-200 text-xs mt-1">「売価見積」タブで<br>粗利を確認</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Important: Sheet vs System -->
+      <section class="bg-orange-50 border-2 border-orange-300 rounded-xl p-6 mb-6">
+        <h2 class="text-lg font-bold text-orange-800 mb-3"><i class="fas fa-exchange-alt mr-2"></i>元のシートとの違い（必ず読んでください）</h2>
+        <div class="text-sm text-gray-700 space-y-3">
+          <p>元の Excel シートでは、<strong>工種ごとに別のタブ</strong>を開いて1つずつ見積入力していましたが、本システムでは<strong>まず一括自動計算</strong>してから、<strong>必要な工種だけ個別に修正する</strong>流れに変わっています。</p>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+            <div class="bg-white rounded-lg p-4 border border-orange-200">
+              <h3 class="font-bold text-red-600 text-sm mb-2"><i class="fas fa-file-excel mr-1"></i>元のシート（旧）</h3>
+              <ol class="list-decimal list-inside text-xs space-y-1 text-gray-600">
+                <li>「基礎工事」タブを開いて見積入力</li>
+                <li>「上棟費」タブを開いて見積入力</li>
+                <li>「外壁」タブを開いて見積入力</li>
+                <li>...58工種を1つずつ手入力</li>
+                <li>合計を手動計算</li>
+              </ol>
+              <p class="text-xs text-red-500 mt-2 font-medium">全部手入力 = 時間がかかる</p>
+            </div>
+            <div class="bg-white rounded-lg p-4 border border-green-200">
+              <h3 class="font-bold text-green-600 text-sm mb-2"><i class="fas fa-laptop-code mr-1"></i>本システム（新）</h3>
+              <ol class="list-decimal list-inside text-xs space-y-1 text-gray-600">
+                <li>建物情報（坪数・面積等）を入力</li>
+                <li>「初期計算」ボタン1回クリック</li>
+                <li><strong>58工種が全自動で算出</strong></li>
+                <li>業者見積や仕様変更がある工種だけ個別修正</li>
+                <li>合計・粗利は自動計算</li>
+              </ol>
+              <p class="text-xs text-green-600 mt-2 font-medium">大部分は自動 = 速い＆正確</p>
+            </div>
+          </div>
+          <div class="bg-orange-100 rounded-lg p-3 mt-3 text-xs">
+            <i class="fas fa-lightbulb text-orange-600 mr-1"></i><strong>ポイント</strong>：自動算出された金額がそのまま使えるケースが多いです。業者からの見積書が届いた工種など、<strong>実際の金額がわかっている工種だけ</strong>手動修正すればOKです。
+          </div>
+        </div>
+      </section>
+
+      <!-- TOC -->
+      <div class="bg-gray-50 rounded-xl border p-5 mb-8">
+        <h2 class="text-sm font-bold text-gray-700 mb-3"><i class="fas fa-list-ol mr-1"></i>目次</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-1 text-sm">
+          <a href="#step1" class="text-hm-700 hover:text-hm-900 py-1 hover:bg-hm-50 px-2 rounded"><i class="fas fa-chevron-right text-xs mr-1"></i>1. 案件を作成する</a>
+          <a href="#step2" class="text-hm-700 hover:text-hm-900 py-1 hover:bg-hm-50 px-2 rounded"><i class="fas fa-chevron-right text-xs mr-1"></i>2. 建物情報を入力する</a>
+          <a href="#step3" class="text-hm-700 hover:text-hm-900 py-1 hover:bg-hm-50 px-2 rounded"><i class="fas fa-chevron-right text-xs mr-1"></i>3. 初期計算を実行する</a>
+          <a href="#step4" class="text-hm-700 hover:text-hm-900 py-1 hover:bg-hm-50 px-2 rounded"><i class="fas fa-chevron-right text-xs mr-1"></i>4. 個別の工種見積を修正する</a>
+          <a href="#step5" class="text-hm-700 hover:text-hm-900 py-1 hover:bg-hm-50 px-2 rounded"><i class="fas fa-chevron-right text-xs mr-1"></i>5. 原価サマリを確認する</a>
+          <a href="#step6" class="text-hm-700 hover:text-hm-900 py-1 hover:bg-hm-50 px-2 rounded"><i class="fas fa-chevron-right text-xs mr-1"></i>6. 売価を入力して粗利を確認する</a>
+          <a href="#step7" class="text-hm-700 hover:text-hm-900 py-1 hover:bg-hm-50 px-2 rounded"><i class="fas fa-chevron-right text-xs mr-1"></i>7. リスクセンターで全体確認</a>
+          <a href="#step8" class="text-hm-700 hover:text-hm-900 py-1 hover:bg-hm-50 px-2 rounded"><i class="fas fa-chevron-right text-xs mr-1"></i>8. 仕様変更時の再計算と差分解決</a>
+          <a href="#faq" class="text-hm-700 hover:text-hm-900 py-1 hover:bg-hm-50 px-2 rounded"><i class="fas fa-chevron-right text-xs mr-1"></i>9. よくある質問 (FAQ)</a>
+          <a href="#terms" class="text-hm-700 hover:text-hm-900 py-1 hover:bg-hm-50 px-2 rounded"><i class="fas fa-chevron-right text-xs mr-1"></i>10. 用語集</a>
+        </div>
+      </div>
+
+      <!-- STEP 1 -->
+      <section id="step1" class="bg-white rounded-xl border p-6 mb-5">
+        <h2 class="text-lg font-bold text-gray-800 mb-3 flex items-center"><span class="bg-hm-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm mr-3 flex-shrink-0">1</span>案件を作成する</h2>
+        <div class="space-y-3 text-sm text-gray-600">
+          <div class="flex items-start gap-3 bg-gray-50 rounded-lg p-3">
+            <span class="bg-hm-600 text-white min-w-[28px] h-7 flex items-center justify-center rounded-lg text-xs font-bold flex-shrink-0">1</span>
+            <div><a href="/ui/projects" class="text-hm-600 underline font-bold">案件一覧ページ</a>を開き、右上の緑ボタン「<strong class="text-hm-700">＋ 新規案件</strong>」をクリック</div>
+          </div>
+          <div class="flex items-start gap-3 bg-gray-50 rounded-lg p-3">
+            <span class="bg-hm-600 text-white min-w-[28px] h-7 flex items-center justify-center rounded-lg text-xs font-bold flex-shrink-0">2</span>
+            <div>ダイアログで以下を入力：
+              <div class="grid grid-cols-3 gap-2 mt-2 text-xs">
+                <div class="bg-white border rounded p-2"><strong>案件コード</strong> <span class="text-red-400">必須</span><br>例: 2026-001</div>
+                <div class="bg-white border rounded p-2"><strong>案件名</strong> <span class="text-red-400">必須</span><br>例: 山田邸新築工事</div>
+                <div class="bg-white border rounded p-2"><strong>ラインナップ</strong> <span class="text-red-400">必須</span><br>SHIN / RIN / MOKU</div>
+              </div>
+              <p class="text-xs text-gray-400 mt-2">坪数・面積・断熱等級・防火区分もここで入力できますが、後から「案件情報」タブで編集も可能です。</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-3 bg-gray-50 rounded-lg p-3">
+            <span class="bg-hm-600 text-white min-w-[28px] h-7 flex items-center justify-center rounded-lg text-xs font-bold flex-shrink-0">3</span>
+            <div>「<strong>作成</strong>」ボタンで案件の詳細画面に自動遷移します</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- STEP 2 -->
+      <section id="step2" class="bg-white rounded-xl border p-6 mb-5">
+        <h2 class="text-lg font-bold text-gray-800 mb-3 flex items-center"><span class="bg-hm-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm mr-3 flex-shrink-0">2</span>建物情報を入力する（「案件情報」タブ）</h2>
+        <div class="space-y-3 text-sm text-gray-600">
+          <p>案件詳細画面の <strong class="text-hm-700">「案件情報」タブ</strong>（タブ一覧の2番目）を開きます。</p>
+          <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+            <i class="fas fa-lightbulb text-yellow-500 mr-1"></i><strong>重要</strong>：坪数・面積は原価自動計算の基礎データです。<strong>正確に入力するほど見積精度が上がります。</strong>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+            <div class="rounded-lg border p-3">
+              <h4 class="font-bold text-gray-700 mb-2"><i class="fas fa-home text-hm-500 mr-1"></i>基本情報</h4>
+              <ul class="space-y-1 text-gray-500"><li>案件名 / 顧客名 / ラインナップ</li><li>ステータス / 断熱等級 / 防火区分</li><li>屋根形状 / WB工法 / 平屋 / 二世帯</li></ul>
+            </div>
+            <div class="rounded-lg border p-3">
+              <h4 class="font-bold text-gray-700 mb-2"><i class="fas fa-ruler-combined text-blue-500 mr-1"></i>面積・寸法</h4>
+              <ul class="space-y-1 text-gray-500"><li>坪数 / 建築面積 / 延床面積</li><li>1F面積 / 2F面積 / 屋根面積</li><li>外壁面積 / 基礎周長 / ポーチ面積</li></ul>
+            </div>
+            <div class="rounded-lg border p-3">
+              <h4 class="font-bold text-gray-700 mb-2"><i class="fas fa-solar-panel text-yellow-500 mr-1"></i>太陽光・オプション</h4>
+              <ul class="space-y-1 text-gray-500"><li>太陽光パネル有無 / PV容量(kW)</li><li>蓄電池有無 / 蓄電池容量(kWh)</li><li>ドーマー / ロフト / 焼杉</li></ul>
+            </div>
+            <div class="rounded-lg border p-3">
+              <h4 class="font-bold text-gray-700 mb-2"><i class="fas fa-map-marker-alt text-red-500 mr-1"></i>所在地・設備</h4>
+              <ul class="space-y-1 text-gray-500"><li>都道府県 / 市区町村 / 住所</li><li>上水道引込 / 下水道引込</li><li>配管距離 / 雨樋延長</li></ul>
+            </div>
+          </div>
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs">
+            <i class="fas fa-info-circle text-blue-500 mr-1"></i>各項目は入力して別のフィールドに移動すると<strong>自動保存</strong>されます。「保存」ボタンを押す必要はありません。
+          </div>
+        </div>
+      </section>
+
+      <!-- STEP 3 -->
+      <section id="step3" class="bg-white rounded-xl border p-6 mb-5">
+        <h2 class="text-lg font-bold text-gray-800 mb-3 flex items-center"><span class="bg-hm-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm mr-3 flex-shrink-0">3</span>初期計算を実行する</h2>
+        <div class="space-y-3 text-sm text-gray-600">
+          <div class="flex items-start gap-3 bg-green-50 rounded-lg p-4 border border-green-200">
+            <div class="text-3xl text-green-600"><i class="fas fa-hand-pointer"></i></div>
+            <div>
+              <p class="font-bold text-green-800 text-base mb-1">ページ上部の緑の「<i class="fas fa-calculator mr-1"></i>初期計算」ボタンをクリック</p>
+              <p class="text-green-700">マスタデータ（58工種・47ルール）から全工種の原価が一括で自動算出されます。</p>
+            </div>
+          </div>
+          <div class="bg-gray-50 rounded-lg p-4">
+            <h4 class="font-bold text-gray-700 text-sm mb-2">計算される工種の例：</h4>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+              <div class="bg-white rounded p-2 text-center border"><strong>基礎工事</strong><br><span class="text-gray-400">坪数x単価</span></div>
+              <div class="bg-white rounded p-2 text-center border"><strong>上棟費</strong><br><span class="text-gray-400">面積ベース</span></div>
+              <div class="bg-white rounded p-2 text-center border"><strong>外壁工事</strong><br><span class="text-gray-400">外壁面積x単価</span></div>
+              <div class="bg-white rounded p-2 text-center border"><strong>電気工事</strong><br><span class="text-gray-400">坪数ベース</span></div>
+              <div class="bg-white rounded p-2 text-center border"><strong>屋根工事</strong><br><span class="text-gray-400">屋根面積x単価</span></div>
+              <div class="bg-white rounded p-2 text-center border"><strong>給排水</strong><br><span class="text-gray-400">配管距離ベース</span></div>
+              <div class="bg-white rounded p-2 text-center border"><strong>太陽光</strong><br><span class="text-gray-400">kWx単価</span></div>
+              <div class="bg-white rounded p-2 text-center border"><strong>...他51工種</strong><br><span class="text-gray-400">全58工種</span></div>
+            </div>
+          </div>
+          <p class="text-xs text-gray-400"><i class="fas fa-clock mr-1"></i>計算は数秒で完了し、各タブにデータが表示されます。</p>
+        </div>
+      </section>
+
+      <!-- STEP 4: INDIVIDUAL COST ITEM EDITING (KEY SECTION) -->
+      <section id="step4" class="bg-white rounded-xl border-2 border-hm-400 p-6 mb-5">
+        <h2 class="text-lg font-bold text-gray-800 mb-1 flex items-center"><span class="bg-hm-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm mr-3 flex-shrink-0">4</span>個別の工種見積を修正する（「工種明細」タブ）</h2>
+        <p class="text-xs text-hm-600 font-medium mb-4 ml-11">-- 元シートの「工種別タブ」に相当する機能です --</p>
+        <div class="space-y-4 text-sm text-gray-600">
+          <div class="bg-hm-50 border border-hm-200 rounded-lg p-4">
+            <h3 class="font-bold text-hm-800 mb-2"><i class="fas fa-star mr-1"></i>元シートとの対応</h3>
+            <p>元のシートでは「基礎工事」「上棟費」「外壁」...と<strong>各工種ごとに別タブ</strong>で見積入力していました。</p>
+            <p class="mt-1">本システムでは、全58工種が<strong>「工種明細」タブの一覧表</strong>にまとめて表示されます。各行の<strong>鉛筆アイコン <i class="fas fa-pen-to-square text-hm-600"></i></strong> をクリックすると、その工種の<strong>数量・単価・金額を個別に修正</strong>できます。</p>
+          </div>
+
+          <h3 class="font-bold text-gray-700"><i class="fas fa-search mr-1"></i>一覧画面の見方</h3>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs border rounded-lg overflow-hidden">
+              <thead class="bg-gray-100"><tr>
+                <th class="px-3 py-2 text-left font-bold">カテゴリ</th><th class="px-3 py-2 text-left font-bold">工種名</th>
+                <th class="px-3 py-2 text-right font-bold">数量</th><th class="px-3 py-2 text-right font-bold">自動金額</th>
+                <th class="px-3 py-2 text-right font-bold">最終金額</th><th class="px-3 py-2 text-center font-bold">状態</th>
+                <th class="px-3 py-2 text-center font-bold">操作</th>
+              </tr></thead>
+              <tbody>
+                <tr class="bg-white border-t"><td class="px-3 py-2 text-gray-400">FND</td><td class="px-3 py-2 font-medium">基礎工事</td><td class="px-3 py-2 text-right">117.33 m2</td><td class="px-3 py-2 text-right text-gray-500">&#165;950,000</td><td class="px-3 py-2 text-right font-bold">&#165;950,000</td><td class="px-3 py-2 text-center"><span class="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">未確認</span></td><td class="px-3 py-2 text-center text-hm-600"><i class="fas fa-pen-to-square"></i> <span class="text-gray-400">&larr;ここ</span></td></tr>
+                <tr class="bg-orange-50 border-t"><td class="px-3 py-2 text-gray-400">STR</td><td class="px-3 py-2 font-medium">上棟費</td><td class="px-3 py-2 text-right">1 式</td><td class="px-3 py-2 text-right text-gray-500">&#165;200,000</td><td class="px-3 py-2 text-right font-bold text-orange-600">&#165;250,000</td><td class="px-3 py-2 text-center"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full">確認済</span></td><td class="px-3 py-2 text-center text-hm-600"><i class="fas fa-pen-to-square"></i></td></tr>
+              </tbody>
+            </table>
+            <p class="text-xs text-gray-400 mt-1"><i class="fas fa-info-circle mr-1"></i>オレンジ色の金額 = 手動修正済み / 黒字 = 自動算出のまま</p>
+          </div>
+
+          <h3 class="font-bold text-gray-700 mt-4"><i class="fas fa-pen-to-square mr-1 text-hm-600"></i>個別の工種を修正する手順</h3>
+          <div class="space-y-3">
+            <div class="flex items-start gap-3 bg-gray-50 rounded-lg p-3">
+              <span class="bg-hm-600 text-white min-w-[28px] h-7 flex items-center justify-center rounded-lg text-xs font-bold flex-shrink-0">1</span>
+              <div>修正したい工種の行の <strong><i class="fas fa-pen-to-square text-hm-600"></i> アイコン</strong>（または行そのもの）をクリック → <strong>編集ダイアログ</strong>が開きます</div>
+            </div>
+            <div class="flex items-start gap-3 bg-gray-50 rounded-lg p-3">
+              <span class="bg-hm-600 text-white min-w-[28px] h-7 flex items-center justify-center rounded-lg text-xs font-bold flex-shrink-0">2</span>
+              <div>以下の項目を必要に応じて変更：
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2 text-xs">
+                  <div class="bg-white border rounded p-2"><strong>手修正 数量</strong><br><span class="text-gray-400">例: 外壁面積を実測値に変更</span></div>
+                  <div class="bg-white border rounded p-2"><strong>手修正 単価</strong><br><span class="text-gray-400">例: 業者見積の単価に変更</span></div>
+                  <div class="bg-white border rounded p-2"><strong>手修正 金額</strong><br><span class="text-gray-400">例: 一式の金額を直接入力</span></div>
+                  <div class="bg-white border rounded p-2"><strong>変更理由</strong><br><span class="text-gray-400">「業者見積による」「仕様変更」等</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="flex items-start gap-3 bg-gray-50 rounded-lg p-3">
+              <span class="bg-hm-600 text-white min-w-[28px] h-7 flex items-center justify-center rounded-lg text-xs font-bold flex-shrink-0">3</span>
+              <div>「<strong>保存</strong>」ボタンをクリック → 最終金額が更新され、原価サマリにも即時反映されます</div>
+            </div>
+          </div>
+
+          <div class="bg-green-50 border border-green-200 rounded-lg p-4 mt-2">
+            <h4 class="font-bold text-green-800 text-sm mb-2"><i class="fas fa-filter mr-1"></i>便利機能</h4>
+            <ul class="space-y-1 text-xs text-green-700">
+              <li><i class="fas fa-check mr-1"></i><strong>検索</strong>：工種名で絞り込み（例: 「基礎」「電気」「外壁」）</li>
+              <li><i class="fas fa-check mr-1"></i><strong>ステータスフィルタ</strong>：「未確認」「確認済」「要確認」で絞り込み</li>
+              <li><i class="fas fa-check mr-1"></i><strong>レビュー</strong>：確認した工種を「確認済」にマークして進捗管理</li>
+            </ul>
+          </div>
+
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h4 class="font-bold text-blue-800 text-sm mb-2"><i class="fas fa-question-circle mr-1"></i>「元シートのように1工種ずつ見積もりたい」場合</h4>
+            <ol class="list-decimal list-inside text-xs text-blue-700 mt-2 space-y-1">
+              <li>「工種明細」タブを開く</li>
+              <li>上部の検索ボックスに工種名を入力（例: 「基礎」）</li>
+              <li>絞り込まれた工種の <i class="fas fa-pen-to-square text-hm-600"></i> をクリック</li>
+              <li>数量・単価・金額を入力して「保存」</li>
+              <li>次の工種を検索して同じ操作を繰り返す</li>
+            </ol>
+            <p class="text-xs text-blue-600 mt-2 font-medium">これで元シートの「タブ切替 → 入力」と同じ操作が1つの画面でできます。</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- STEP 5 -->
+      <section id="step5" class="bg-white rounded-xl border p-6 mb-5">
+        <h2 class="text-lg font-bold text-gray-800 mb-3 flex items-center"><span class="bg-hm-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm mr-3 flex-shrink-0">5</span>原価サマリを確認する（「原価サマリ」タブ）</h2>
+        <div class="text-sm text-gray-600 space-y-3">
+          <p>「<strong>原価サマリ</strong>」タブで、カテゴリ別の原価合計と構成比を確認できます。</p>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+            <div class="bg-gray-50 rounded-lg p-3 text-center border"><strong>原価合計</strong><br><span class="text-gray-400">全工種の合算額</span></div>
+            <div class="bg-gray-50 rounded-lg p-3 text-center border"><strong>標準原価</strong><br><span class="text-gray-400">基本工事の原価</span></div>
+            <div class="bg-gray-50 rounded-lg p-3 text-center border"><strong>太陽光原価</strong><br><span class="text-gray-400">太陽光関連の原価</span></div>
+            <div class="bg-gray-50 rounded-lg p-3 text-center border"><strong>オプション原価</strong><br><span class="text-gray-400">追加工事の原価</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- STEP 6 -->
+      <section id="step6" class="bg-white rounded-xl border p-6 mb-5">
+        <h2 class="text-lg font-bold text-gray-800 mb-3 flex items-center"><span class="bg-hm-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm mr-3 flex-shrink-0">6</span>売価を入力して粗利を確認する（「売価見積」タブ）</h2>
+        <div class="text-sm text-gray-600 space-y-3">
+          <div class="space-y-3">
+            <div class="flex items-start gap-3 bg-gray-50 rounded-lg p-3"><span class="bg-hm-600 text-white min-w-[28px] h-7 flex items-center justify-center rounded-lg text-xs font-bold flex-shrink-0">1</span><div>種別を選択（概算 / 社内 / 契約 / 実行）</div></div>
+            <div class="flex items-start gap-3 bg-gray-50 rounded-lg p-3"><span class="bg-hm-600 text-white min-w-[28px] h-7 flex items-center justify-center rounded-lg text-xs font-bold flex-shrink-0">2</span><div>「売価合計」に金額を入力（標準売価・太陽光売価も入力可）</div></div>
+            <div class="flex items-start gap-3 bg-gray-50 rounded-lg p-3"><span class="bg-hm-600 text-white min-w-[28px] h-7 flex items-center justify-center rounded-lg text-xs font-bold flex-shrink-0">3</span><div>「<strong>登録</strong>」ボタン → <strong>粗利率</strong>・<strong>乖離分析</strong>が自動表示</div></div>
+          </div>
+          <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-xs mt-2">
+            <i class="fas fa-chart-line text-yellow-500 mr-1"></i><strong>判定基準</strong>：粗利率30%が標準目標。20%未満は「注意」、10%未満は「NG」と自動判定。
+          </div>
+        </div>
+      </section>
+
+      <!-- STEP 7 -->
+      <section id="step7" class="bg-white rounded-xl border p-6 mb-5">
+        <h2 class="text-lg font-bold text-gray-800 mb-3 flex items-center"><span class="bg-hm-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm mr-3 flex-shrink-0">7</span>リスクセンターで全体確認</h2>
+        <div class="text-sm text-gray-600 space-y-3">
+          <p>「<strong>リスクセンター</strong>」タブは案件全体の健全度をダッシュボード形式で表示します。</p>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div class="rounded-lg p-3 border-l-4 border-red-400 bg-gray-50"><strong class="text-xs text-gray-700">リスクレベル</strong><p class="text-xs text-gray-500 mt-1">LOW / MEDIUM / HIGH / CRITICAL</p></div>
+            <div class="rounded-lg p-3 border-l-4 border-blue-400 bg-gray-50"><strong class="text-xs text-gray-700">入力完了率</strong><p class="text-xs text-gray-500 mt-1">必須項目の入力率（%）</p></div>
+            <div class="rounded-lg p-3 border-l-4 border-green-400 bg-gray-50"><strong class="text-xs text-gray-700">レビュー進捗</strong><p class="text-xs text-gray-500 mt-1">確認済み / 全工種数</p></div>
+            <div class="rounded-lg p-3 border-l-4 border-yellow-400 bg-gray-50"><strong class="text-xs text-gray-700">粗利率</strong><p class="text-xs text-gray-500 mt-1">現在のマージン</p></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- STEP 8 -->
+      <section id="step8" class="bg-white rounded-xl border p-6 mb-5">
+        <h2 class="text-lg font-bold text-gray-800 mb-3 flex items-center"><span class="bg-hm-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm mr-3 flex-shrink-0">8</span>仕様変更時の再計算と差分解決</h2>
+        <div class="text-sm text-gray-600 space-y-3">
+          <p>建物の仕様を変更した場合、ページ上部の青い「<strong class="text-blue-600"><i class="fas fa-sync-alt mr-1"></i>再計算</strong>」ボタンで原価を更新できます。</p>
+          <div class="bg-gray-50 rounded-lg p-4">
+            <strong class="text-sm">3つの再計算モード：</strong>
+            <div class="mt-2 space-y-2 text-xs">
+              <div class="flex items-start gap-2"><span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold">推奨</span><div><strong>レビュー済保持</strong>：確認済の工種はそのまま、未確認だけ再計算。</div></div>
+              <div class="flex items-start gap-2"><span class="bg-gray-200 text-gray-600 px-2 py-0.5 rounded font-bold">中間</span><div><strong>自動項目のみ</strong>：手動修正した工種は保持。自動算出のみ再計算。</div></div>
+              <div class="flex items-start gap-2"><span class="bg-red-100 text-red-600 px-2 py-0.5 rounded font-bold">注意</span><div><strong>全置換</strong>：全工種を最新ルールで再計算（手動修正も上書き）。</div></div>
+            </div>
+          </div>
+          <p>再計算後、「<strong>差分解決</strong>」タブで変更内容を確認し、「新値採用」「旧値維持」「手動調整」を選択してください。</p>
+        </div>
+      </section>
+
+      <!-- FAQ -->
+      <section id="faq" class="bg-white rounded-xl border p-6 mb-5">
+        <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center"><span class="bg-hm-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm mr-3 flex-shrink-0">9</span>よくある質問（FAQ）</h2>
+        <div class="space-y-4 text-sm">
+          <div class="border-b pb-3"><h3 class="font-bold text-gray-800"><i class="fas fa-question-circle text-hm-500 mr-1"></i>Q. 元シートのように各工種を1つずつ見積もりたい</h3><p class="text-gray-600 mt-1"><strong>A.</strong> 「工種明細」タブで検索ボックスに工種名を入力 → 編集アイコンをクリック → 数量・単価・金額を変更。<a href="#step4" class="text-hm-600 underline">詳しくはSTEP 4</a></p></div>
+          <div class="border-b pb-3"><h3 class="font-bold text-gray-800"><i class="fas fa-question-circle text-hm-500 mr-1"></i>Q. 業者からの見積書を反映したい</h3><p class="text-gray-600 mt-1"><strong>A.</strong> 「工種明細」で該当工種を開き、「手修正 金額」に業者見積額を入力。変更理由で「業者見積」を選択して保存。</p></div>
+          <div class="border-b pb-3"><h3 class="font-bold text-gray-800"><i class="fas fa-question-circle text-hm-500 mr-1"></i>Q. 自動計算された金額が実際と違う</h3><p class="text-gray-600 mt-1"><strong>A.</strong> まず「案件情報」タブで建物情報（坪数・面積等）が正しいか確認。正しい場合は工種明細で手動修正できます。</p></div>
+          <div class="border-b pb-3"><h3 class="font-bold text-gray-800"><i class="fas fa-question-circle text-hm-500 mr-1"></i>Q. 仕様を変更したら原価はどうなる？</h3><p class="text-gray-600 mt-1"><strong>A.</strong> 「案件情報」で仕様を変更 → 「再計算」ボタン → 変更差分が「差分解決」タブに表示。手動修正した工種は保持されます。</p></div>
+          <div class="border-b pb-3"><h3 class="font-bold text-gray-800"><i class="fas fa-question-circle text-hm-500 mr-1"></i>Q. 「初期計算」ボタンが見当たらない</h3><p class="text-gray-600 mt-1"><strong>A.</strong> 計算実行後は「再計算」ボタンに変わります。案件詳細ページの上部ヘッダー右側にあります。</p></div>
+          <div><h3 class="font-bold text-gray-800"><i class="fas fa-question-circle text-hm-500 mr-1"></i>Q. 粗利率の目標値を変えたい</h3><p class="text-gray-600 mt-1"><strong>A.</strong> 「案件情報」タブの下部「粗利率設定」セクションで案件ごとの目標粗利率を設定できます。</p></div>
+        </div>
+      </section>
+
+      <!-- Terms -->
+      <section id="terms" class="bg-white rounded-xl border p-6 mb-8">
+        <h2 class="text-lg font-bold text-gray-800 mb-3 flex items-center"><span class="bg-hm-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm mr-3 flex-shrink-0">10</span>用語集</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+          <div class="bg-gray-50 rounded-lg p-3"><strong>スナップショット</strong><br><span class="text-gray-500">ある時点の原価計算結果のコピー。再計算のたびに新しいスナップショットが作られます。</span></div>
+          <div class="bg-gray-50 rounded-lg p-3"><strong>工種</strong><br><span class="text-gray-500">建築の各作業区分（基礎工事、上棟費等）。現在58工種がマスタ登録済み。</span></div>
+          <div class="bg-gray-50 rounded-lg p-3"><strong>マージン（粗利率）</strong><br><span class="text-gray-500">(売価-原価)/売価x100。30%が標準目標値。</span></div>
+          <div class="bg-gray-50 rounded-lg p-3"><strong>ギャップ（乖離）</strong><br><span class="text-gray-500">期待粗利率と実際の粗利率の差。正値=マージン不足。</span></div>
+          <div class="bg-gray-50 rounded-lg p-3"><strong>ラインナップ</strong><br><span class="text-gray-500">平松建築の商品シリーズ。SHIN / RIN / MOKU（大屋根・平屋・ROKU）の5種類。</span></div>
+          <div class="bg-gray-50 rounded-lg p-3"><strong>リスクスコア</strong><br><span class="text-gray-500">案件の問題度。エラーx10、警告x3、情報x1で加算。</span></div>
+        </div>
+      </section>
+
+      <!-- Quick Links -->
+      <div class="bg-gradient-to-r from-hm-50 to-hm-100 rounded-xl border border-hm-200 p-5 text-center">
+        <p class="text-sm text-hm-800 mb-3"><strong>さっそく使ってみましょう！</strong></p>
+        <div class="flex justify-center gap-3 flex-wrap">
+          <a href="/ui/projects" class="inline-block bg-hm-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-hm-700 transition shadow-sm"><i class="fas fa-rocket mr-1"></i>案件一覧へ</a>
+          <a href="/api/health" target="_blank" class="inline-block bg-white text-hm-600 px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-hm-50 transition border border-hm-300"><i class="fas fa-heartbeat mr-1"></i>システム状態</a>
+        </div>
+      </div>
+    </div>
+  `, 'manual'));
 });
 
 export default uiRoutes;

@@ -37,7 +37,7 @@ app.get('/api/health', (c) => {
   return c.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    version: '0.8.0-step8',
+    version: '0.8.1',
     phase: 'step-8-cr03-cr05-deploy-prep',
   });
 });
