@@ -322,5 +322,6 @@ Step 1-A: COMPLETE
 3. **1 案件の snapshot 生成** — project 作成 → Queue 経由生成 → `current_snapshot_id` 切替 → cost items/summaries/warnings 生成
 
 > **判定者**: AI Dev Team  
-> **承認待ち**: モギモギ（関屋紘之）  
-> **Date**: 2026-03-08
+> **承認者**: モギモギ（関屋紘之） — **2026-03-08 承認済み**  
+> **承認コメント**: 25テーブル正式化、seed 件数不整合の解消、Queue 本番レベルテスト完了、完了条件の文書化 — 4 点を評価し承認  
+> **次のアクション**: Step 2 マスタ参照 API 骨格実装に着手
