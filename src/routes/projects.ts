@@ -106,7 +106,9 @@ projectRoutes.get('/:id', async (c) => {
     return c.json(err.body, err.status);
   }
 
-  const project = await db.prepare('SELECT * FROM projects WHERE id = ?').bind(id).first();
+  const project = await db.prepare(
+    'SELECT p.*, u.name as assigned_to_name FROM projects p LEFT JOIN app_users u ON u.id = p.assigned_to WHERE p.id = ?'
+  ).bind(id).first();
 
   if (!project) {
     const err = notFoundError('Project', id);

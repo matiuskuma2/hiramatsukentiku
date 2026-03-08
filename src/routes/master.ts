@@ -299,6 +299,63 @@ masterRoutes.patch('/system-settings/:key', requireRole('admin', 'manager'), asy
 });
 
 // --------------------------------------------------
+// POST /api/master/items
+// 権限: admin
+// Create new master item
+// --------------------------------------------------
+masterRoutes.post('/items', requireRole('admin'), async (c) => {
+  const db = c.env.DB;
+  const user = c.get('currentUser')!;
+
+  let body: any;
+  try { body = await c.req.json(); } catch { return c.json({ success: false, error: 'Invalid JSON body' }, 400); }
+
+  if (!body.category_code || !body.item_code || !body.item_name) {
+    return c.json({ success: false, error: 'category_code, item_code, item_name are required' }, 400);
+  }
+
+  // Generate ID
+  const itemId = 'item_' + body.item_code;
+
+  // Check duplicate
+  const existing = await db.prepare('SELECT id FROM cost_master_items WHERE id = ? OR item_code = ?').bind(itemId, body.item_code).first();
+  if (existing) {
+    return c.json({ success: false, error: `工種コード '${body.item_code}' は既に存在します` }, 409);
+  }
+
+  // Get max display_order
+  const maxOrder = await db.prepare(
+    'SELECT MAX(display_order) as max_order FROM cost_master_items WHERE category_code = ?'
+  ).bind(body.category_code).first() as any;
+  const displayOrder = (maxOrder?.max_order || 0) + 10;
+
+  await db.prepare(`
+    INSERT INTO cost_master_items (
+      id, category_code, item_code, item_name, unit,
+      base_unit_price, base_fixed_amount, calculation_type,
+      section_type, item_group, vendor_name, note,
+      display_order, is_active, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, datetime('now'), datetime('now'))
+  `).bind(
+    itemId, body.category_code, body.item_code, body.item_name, body.unit || null,
+    body.base_unit_price ?? null, body.base_fixed_amount ?? null, body.calculation_type || 'manual_quote',
+    body.section_type || 'basic', body.item_group || 'basic', body.vendor_name || null, body.note || null,
+    displayOrder
+  ).run();
+
+  // Log the change
+  try {
+    await db.prepare(`
+      INSERT INTO master_change_logs (target_table, target_id, change_type, field_name, before_value, after_value, reason, changed_by, changed_at)
+      VALUES ('cost_master_items', ?, 'create', 'all', '{}', ?, '管理画面から新規追加', ?, datetime('now'))
+    `).bind(itemId, JSON.stringify(body), user.id).run();
+  } catch {}
+
+  const created = await db.prepare('SELECT * FROM cost_master_items WHERE id = ?').bind(itemId).first();
+  return c.json({ success: true, data: created, message: '新規工種を追加しました' }, 201);
+});
+
+// --------------------------------------------------
 // PATCH /api/master/items/:id
 // 権限: admin
 // Update base_unit_price, base_fixed_amount, unit, vendor_name, note

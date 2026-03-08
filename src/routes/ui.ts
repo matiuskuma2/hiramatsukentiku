@@ -185,10 +185,12 @@ uiRoutes.get('/ui/projects', (c) => {
               <span x-show="p.lineup"><i class="fas fa-home mr-0.5"></i><span x-text="p.lineup"></span></span>
               <span x-show="p.tsubo"><i class="fas fa-ruler-combined mr-0.5"></i><span x-text="p.tsubo + '坪'"></span></span>
               <span x-show="p.customer_name"><i class="fas fa-user mr-0.5"></i><span x-text="p.customer_name"></span></span>
-              <span x-show="p.assigned_to_name" class="text-hm-600"><i class="fas fa-user-tie mr-0.5"></i><span x-text="p.assigned_to_name"></span></span>
             </div>
             <div class="flex justify-between items-center mt-3 pt-3 border-t text-xs text-gray-400">
-              <span>Rev <span x-text="p.revision_no || 0"></span></span>
+              <div class="flex items-center gap-3">
+                <span>Rev <span x-text="p.revision_no || 0"></span></span>
+                <span class="text-hm-600 font-medium"><i class="fas fa-user-pen mr-0.5"></i>担当: <span x-text="p.assigned_to_name || '未設定'"></span></span>
+              </div>
               <span x-text="fmt.date(p.updated_at)"></span>
             </div>
           </a>
@@ -289,6 +291,7 @@ uiRoutes.get('/ui/projects/:id', (c) => {
               <span x-show="project?.lineup"><i class="fas fa-home mr-1 text-gray-400"></i><span x-text="project?.lineup"></span></span>
               <span x-show="project?.tsubo"><i class="fas fa-ruler-combined mr-1 text-gray-400"></i><span x-text="project?.tsubo + '坪'"></span></span>
               <span x-show="project?.customer_name"><i class="fas fa-user mr-1 text-gray-400"></i><span x-text="project?.customer_name"></span></span>
+              <span x-show="project?.assigned_to_name" class="text-hm-600"><i class="fas fa-user-pen mr-1"></i>担当: <span x-text="project?.assigned_to_name"></span></span>
             </div>
           </div>
           <div class="flex gap-2 flex-shrink-0">
@@ -1124,13 +1127,20 @@ uiRoutes.get('/ui/admin', (c) => {
       <!-- TAB: Master Items -->
       <div x-show="tab==='master'" class="fade-in space-y-4">
         <div class="bg-white rounded-xl border p-5">
-          <h3 class="font-semibold mb-3"><i class="fas fa-database mr-1.5 text-hm-600"></i>単価マスタ管理</h3>
-          <p class="text-sm text-gray-500 mb-4">各工種のデフォルト単価を確認・変更できます。変更した単価は次回の計算時に反映されます。</p>
-          <div class="flex gap-2 mb-4">
+          <div class="flex justify-between items-center mb-3">
+            <div>
+              <h3 class="font-semibold"><i class="fas fa-database mr-1.5 text-hm-600"></i>単価マスタ管理</h3>
+              <p class="text-sm text-gray-500 mt-1">各工種のデフォルト単価を確認・変更できます。変更した単価は次回の再計算時に反映されます。</p>
+            </div>
+            <button @click="openMasterCreate()" class="bg-hm-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-hm-700 transition shadow-sm whitespace-nowrap">
+              <i class="fas fa-plus mr-1.5"></i>新規工種追加
+            </button>
+          </div>
+          <div class="flex flex-wrap gap-2 mb-4">
             <input x-model="masterSearch" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-64 focus:ring-2 focus:ring-hm-500" placeholder="工種名・カテゴリで検索...">
             <select x-model="masterCategory" @change="loadMasterItems()" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm">
               <option value="">全カテゴリ</option>
-              <template x-for="cat in categories" :key="cat.category_code"><option :value="cat.category_code" x-text="cat.category_code + ' - ' + cat.category_name"></option></template>
+              <template x-for="cat in categories" :key="cat.category_code"><option :value="cat.category_code" x-text="cat.category_name"></option></template>
             </select>
           </div>
           <div class="overflow-x-auto"><table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr>
@@ -1143,39 +1153,94 @@ uiRoutes.get('/ui/admin', (c) => {
             <th class="px-3 py-2.5 text-center text-xs font-semibold text-gray-500">操作</th>
           </tr></thead><tbody class="divide-y divide-gray-100">
             <template x-for="item in filteredMasterItems()" :key="item.id"><tr class="hover:bg-gray-50 text-sm">
-              <td class="px-3 py-2 text-xs text-gray-500 font-mono" x-text="item.category_code"></td>
+              <td class="px-3 py-2 text-xs"><span class="px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded" x-text="catName(item.category_code)"></span></td>
               <td class="px-3 py-2 font-medium text-gray-800 max-w-xs truncate" x-text="item.item_name"></td>
-              <td class="px-3 py-2 text-xs"><span class="px-1.5 py-0.5 bg-gray-100 rounded" x-text="item.calculation_type"></span></td>
-              <td class="px-3 py-2 text-right font-mono text-sm" x-text="item.base_unit_price != null ? fmt.yen(item.base_unit_price) : '-'"></td>
-              <td class="px-3 py-2 text-right font-mono text-sm" x-text="item.base_fixed_amount != null ? fmt.yen(item.base_fixed_amount) : '-'"></td>
+              <td class="px-3 py-2 text-xs"><span class="px-1.5 py-0.5 bg-gray-100 rounded" x-text="calcLabel(item.calculation_type)"></span></td>
+              <td class="px-3 py-2 text-right font-mono text-sm" :class="{'text-hm-700 font-semibold': item.base_unit_price}" x-text="item.base_unit_price != null ? fmt.yen(item.base_unit_price) : '-'"></td>
+              <td class="px-3 py-2 text-right font-mono text-sm" :class="{'text-orange-600 font-semibold': item.base_fixed_amount}" x-text="item.base_fixed_amount != null ? fmt.yen(item.base_fixed_amount) : '-'"></td>
               <td class="px-3 py-2 text-xs text-gray-500" x-text="item.unit || '-'"></td>
-              <td class="px-3 py-2 text-center"><button @click="openMasterEdit(item)" class="text-hm-600 hover:text-hm-800"><i class="fas fa-pen"></i></button></td>
+              <td class="px-3 py-2 text-center"><button @click="openMasterEdit(item)" class="text-hm-600 hover:text-hm-800 p-1" title="編集"><i class="fas fa-pen"></i></button></td>
             </tr></template>
           </tbody></table></div>
           <div x-show="masterItems.length === 0 && !masterLoading" class="py-8 text-center text-gray-400"><i class="fas fa-database text-3xl mb-2"></i><p>マスタアイテムがありません</p></div>
           <div x-show="masterLoading" class="py-8 text-center text-gray-400"><i class="fas fa-spinner fa-spin text-2xl mb-2"></i><p>読み込み中...</p></div>
-          <div class="mt-2 text-xs text-gray-400" x-text="filteredMasterItems().length + ' / ' + masterItems.length + ' 件'"></div>
+          <div class="mt-2 text-xs text-gray-400" x-text="filteredMasterItems().length + ' / ' + masterItems.length + ' 件表示'"></div>
         </div>
 
         <!-- Master Edit Modal -->
         <div x-show="masterEditModal.show" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" @click.self="masterEditModal.show=false">
           <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 slide-in" @click.stop>
             <h2 class="text-lg font-bold mb-2"><i class="fas fa-pen mr-2 text-hm-600"></i>単価変更</h2>
-            <div class="bg-gray-50 rounded-lg p-3 mb-4 text-sm"><span class="font-mono text-xs text-gray-400" x-text="masterEditModal.item?.category_code + ' / ' + masterEditModal.item?.item_code"></span><div class="font-bold text-gray-800 mt-1" x-text="masterEditModal.item?.item_name"></div></div>
+            <div class="bg-gray-50 rounded-lg p-3 mb-4 text-sm"><span class="font-mono text-xs text-gray-400" x-text="(masterEditModal.item?.category_code||'') + ' / ' + (masterEditModal.item?.item_code||'')"></span><div class="font-bold text-gray-800 mt-1" x-text="masterEditModal.item?.item_name"></div></div>
             <div class="space-y-3">
               <div class="grid grid-cols-2 gap-3">
-                <div><label class="block text-xs font-medium text-gray-500 mb-1">デフォルト単価</label><input x-model.number="masterEditModal.form.base_unit_price" type="number" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500"></div>
-                <div><label class="block text-xs font-medium text-gray-500 mb-1">固定額</label><input x-model.number="masterEditModal.form.base_fixed_amount" type="number" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500"></div>
+                <div><label class="block text-xs font-medium text-gray-500 mb-1">デフォルト単価 (円)</label>
+                  <input type="number" step="1" :value="masterEditModal.form.base_unit_price" @input="masterEditModal.form.base_unit_price = $event.target.value === '' ? null : Number($event.target.value)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500" placeholder="例: 35000"></div>
+                <div><label class="block text-xs font-medium text-gray-500 mb-1">固定額 (円)</label>
+                  <input type="number" step="1" :value="masterEditModal.form.base_fixed_amount" @input="masterEditModal.form.base_fixed_amount = $event.target.value === '' ? null : Number($event.target.value)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500" placeholder="例: 500000"></div>
               </div>
               <div class="grid grid-cols-2 gap-3">
-                <div><label class="block text-xs font-medium text-gray-500 mb-1">単位</label><input x-model="masterEditModal.form.unit" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500"></div>
-                <div><label class="block text-xs font-medium text-gray-500 mb-1">業者名</label><input x-model="masterEditModal.form.vendor_name" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500"></div>
+                <div><label class="block text-xs font-medium text-gray-500 mb-1">単位</label>
+                  <input type="text" x-model="masterEditModal.form.unit" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500" placeholder="例: m2, 坪, kW"></div>
+                <div><label class="block text-xs font-medium text-gray-500 mb-1">業者名</label>
+                  <input type="text" x-model="masterEditModal.form.vendor_name" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500" placeholder="例: ABC建設"></div>
               </div>
-              <div><label class="block text-xs font-medium text-gray-500 mb-1">備考</label><textarea x-model="masterEditModal.form.note" rows="2" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500"></textarea></div>
+              <div><label class="block text-xs font-medium text-gray-500 mb-1">備考</label>
+                <textarea x-model="masterEditModal.form.note" rows="2" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500" placeholder="メモや補足情報"></textarea></div>
             </div>
             <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-2 mt-3 text-xs text-yellow-700"><i class="fas fa-exclamation-triangle mr-1"></i>単価の変更は既存案件には影響しません。変更後に案件を「再計算」すると新しい単価が反映されます。</div>
             <div class="flex justify-end gap-2 mt-4"><button @click="masterEditModal.show=false" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">キャンセル</button>
               <button @click="saveMasterItem()" class="px-5 py-2 text-sm bg-hm-600 text-white rounded-lg hover:bg-hm-700 font-medium" :disabled="masterSaving"><span x-show="!masterSaving"><i class="fas fa-save mr-1"></i>保存</span><span x-show="masterSaving"><i class="fas fa-spinner fa-spin"></i></span></button></div>
+            <div x-show="masterError" class="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600" x-text="masterError"></div>
+          </div>
+        </div>
+
+        <!-- Master Create Modal -->
+        <div x-show="masterCreateModal.show" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" @click.self="masterCreateModal.show=false">
+          <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 slide-in" @click.stop>
+            <h2 class="text-lg font-bold mb-4"><i class="fas fa-plus-circle mr-2 text-hm-600"></i>新規工種追加</h2>
+            <div class="space-y-3">
+              <div class="grid grid-cols-2 gap-3">
+                <div><label class="block text-xs font-medium text-gray-500 mb-1">カテゴリ <span class="text-red-400">*</span></label>
+                  <select x-model="masterCreateModal.form.category_code" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500">
+                    <option value="">選択してください</option>
+                    <template x-for="cat in categories" :key="cat.category_code"><option :value="cat.category_code" x-text="cat.category_name"></option></template>
+                  </select></div>
+                <div><label class="block text-xs font-medium text-gray-500 mb-1">工種コード <span class="text-red-400">*</span></label>
+                  <input type="text" x-model="masterCreateModal.form.item_code" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500" placeholder="例: foundation_custom"></div>
+              </div>
+              <div><label class="block text-xs font-medium text-gray-500 mb-1">工種名 <span class="text-red-400">*</span></label>
+                <input type="text" x-model="masterCreateModal.form.item_name" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500" placeholder="例: 基礎工事 特殊仕様"></div>
+              <div class="grid grid-cols-2 gap-3">
+                <div><label class="block text-xs font-medium text-gray-500 mb-1">計算方法</label>
+                  <select x-model="masterCreateModal.form.calculation_type" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500">
+                    <option value="per_m2">面積(m2)ベース</option><option value="per_tsubo">坪ベース</option><option value="per_meter">mベース</option>
+                    <option value="per_piece">個ベース</option><option value="range_lookup">範囲参照</option><option value="fixed_amount">固定額</option>
+                    <option value="lineup_fixed">ラインナップ固定</option><option value="rule_lookup">ルール参照</option><option value="manual_quote">手動見積</option>
+                    <option value="product_selection">商品選択</option><option value="package_with_delta">パッケージ</option><option value="threshold_surcharge">閾値加算</option>
+                  </select></div>
+                <div><label class="block text-xs font-medium text-gray-500 mb-1">単位</label>
+                  <input type="text" x-model="masterCreateModal.form.unit" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500" placeholder="例: m2, 坪, kW"></div>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div><label class="block text-xs font-medium text-gray-500 mb-1">デフォルト単価 (円)</label>
+                  <input type="number" step="1" :value="masterCreateModal.form.base_unit_price" @input="masterCreateModal.form.base_unit_price = $event.target.value === '' ? null : Number($event.target.value)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500" placeholder="例: 35000"></div>
+                <div><label class="block text-xs font-medium text-gray-500 mb-1">固定額 (円)</label>
+                  <input type="number" step="1" :value="masterCreateModal.form.base_fixed_amount" @input="masterCreateModal.form.base_fixed_amount = $event.target.value === '' ? null : Number($event.target.value)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500" placeholder="例: 500000"></div>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div><label class="block text-xs font-medium text-gray-500 mb-1">業者名</label>
+                  <input type="text" x-model="masterCreateModal.form.vendor_name" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500"></div>
+                <div><label class="block text-xs font-medium text-gray-500 mb-1">セクション区分</label>
+                  <select x-model="masterCreateModal.form.section_type" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500">
+                    <option value="basic">基本工事</option><option value="extra">追加工事</option>
+                  </select></div>
+              </div>
+              <div><label class="block text-xs font-medium text-gray-500 mb-1">備考</label>
+                <textarea x-model="masterCreateModal.form.note" rows="2" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500" placeholder="メモや補足情報"></textarea></div>
+            </div>
+            <div class="flex justify-end gap-2 mt-4"><button @click="masterCreateModal.show=false" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">キャンセル</button>
+              <button @click="createMasterItem()" class="px-5 py-2 text-sm bg-hm-600 text-white rounded-lg hover:bg-hm-700 font-medium" :disabled="masterSaving"><span x-show="!masterSaving"><i class="fas fa-plus mr-1"></i>追加</span><span x-show="masterSaving"><i class="fas fa-spinner fa-spin"></i></span></button></div>
             <div x-show="masterError" class="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600" x-text="masterError"></div>
           </div>
         </div>
@@ -1214,9 +1279,12 @@ uiRoutes.get('/ui/admin', (c) => {
         userForm: { name:'', email:'', role:'estimator', password:'', department:'' },
         editUserModal: { show:false, user:null, form:{ name:'', role:'', status:'', password:'' } },
         masterEditModal: { show:false, item:null, form:{ base_unit_price:null, base_fixed_amount:null, unit:'', vendor_name:'', note:'' } },
+        masterCreateModal: { show:false, form:{ category_code:'', item_code:'', item_name:'', calculation_type:'area_based', unit:'', base_unit_price:null, base_fixed_amount:null, vendor_name:'', section_type:'basic', note:'' } },
         masterSaving: false, masterError: '',
         toast: { show:false, message:'', type:'info' },
         roleLabel(r) { return {admin:'管理者',manager:'マネージャー',estimator:'見積担当',viewer:'閲覧者'}[r]||r; },
+        catName(code) { const c = this.categories.find(c=>c.category_code===code); return c ? c.category_name : code; },
+        calcLabel(t) { return {per_m2:'面積(m2)ベース',per_tsubo:'坪ベース',per_meter:'mベース',per_piece:'個ベース',range_lookup:'範囲参照',fixed_amount:'固定額',lineup_fixed:'ラインナップ固定',rule_lookup:'ルール参照',manual_quote:'手動見積',product_selection:'商品選択',package_with_delta:'パッケージ',threshold_surcharge:'閾値加算'}[t]||t; },
         showToast(msg, type='success') { this.toast={show:true,message:msg,type}; setTimeout(()=>{this.toast.show=false;},3000); },
         async init() {
           await Promise.all([this.loadUsers(), this.loadSettings(), this.loadCategories(), this.loadMasterItems()]);
@@ -1262,15 +1330,22 @@ uiRoutes.get('/ui/admin', (c) => {
         openMasterEdit(item) { this.masterEditModal.item = item; this.masterEditModal.form = { base_unit_price:item.base_unit_price, base_fixed_amount:item.base_fixed_amount, unit:item.unit||'', vendor_name:item.vendor_name||'', note:item.note||'' }; this.masterError=''; this.masterEditModal.show=true; },
         async saveMasterItem() {
           this.masterSaving=true; this.masterError='';
-          // Use PATCH to update master item (need a new API endpoint, or use system approach)
-          // For now, update via master item version approach
           const item = this.masterEditModal.item;
-          const form = this.masterEditModal.form;
-          // Simple direct update via a dedicated endpoint
+          const form = {...this.masterEditModal.form};
           const r = await api.patch('/master/items/' + item.id, form);
           this.masterSaving=false;
           if(r.success) { this.masterEditModal.show=false; this.showToast('単価を更新しました'); await this.loadMasterItems(); }
           else { this.masterError = r.error || '更新に失敗しました'; }
+        },
+        openMasterCreate() { this.masterCreateModal.form = { category_code:'', item_code:'', item_name:'', calculation_type:'per_m2', unit:'', base_unit_price:null, base_fixed_amount:null, vendor_name:'', section_type:'basic', note:'' }; this.masterError=''; this.masterCreateModal.show=true; },
+        async createMasterItem() {
+          this.masterSaving=true; this.masterError='';
+          const form = {...this.masterCreateModal.form};
+          if(!form.category_code || !form.item_code || !form.item_name) { this.masterError='カテゴリ、工種コード、工種名は必須です'; this.masterSaving=false; return; }
+          const r = await api.post('/master/items', form);
+          this.masterSaving=false;
+          if(r.success) { this.masterCreateModal.show=false; this.showToast('新規工種を追加しました'); await this.loadMasterItems(); }
+          else { this.masterError = r.error || '追加に失敗しました'; }
         },
         async updateSetting(key, value) {
           const r = await api.patch('/master/system-settings/' + key, { setting_value: value });
