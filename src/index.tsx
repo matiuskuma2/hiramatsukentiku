@@ -36,8 +36,8 @@ app.get('/api/health', (c) => {
   return c.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    version: '0.4.0-step4',
-    phase: 'step-4-sales-risk-ai-ui',
+    version: '0.5.0-step5',
+    phase: 'step-5-frontend-enhancement',
   });
 });
 
