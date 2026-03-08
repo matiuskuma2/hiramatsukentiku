@@ -29,6 +29,7 @@ app.route('/api/projects', costItemRoutes);
 app.route('/api/projects', salesEstimateRoutes);
 app.route('/api/projects', riskCentreRoutes);
 app.route('/api/ai', aiRoutes);
+// AI warnings routes are nested under /api/ai/warnings/* (defined in ai.ts)
 app.route('/', uiRoutes);
 
 // === Health Check ===
@@ -36,8 +37,8 @@ app.get('/api/health', (c) => {
   return c.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    version: '0.5.0-step5',
-    phase: 'step-5-frontend-enhancement',
+    version: '0.6.0-step6',
+    phase: 'step-6-ai-hardening',
   });
 });
 

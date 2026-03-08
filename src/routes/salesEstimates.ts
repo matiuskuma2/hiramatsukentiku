@@ -83,16 +83,53 @@ async function getThresholds(db: D1Database) {
 // ==========================================================
 // Helper: Calculate gap analysis between cost and sale price
 // ==========================================================
+// ==========================================================
+// Gap Analysis Types & Severity Decision Rules
+// ==========================================================
+// 乖離率の定義:
+//   margin_deviation = expected_margin - actual_margin
+//   正の値 = 期待粗利率を下回っている（マージン不足）
+//   負の値 = 期待粗利率を上回っている（高マージン）
+//
+// 判定ロジック:
+//   1. actual_margin < 0 (赤字: 売価 < 原価) → severity = 'error'
+//   2. margin_deviation >= sales_gap_error_threshold (default 20%) → severity = 'error'
+//      例: 期待30%, 実績8%, deviation=22 → error
+//   3. margin_deviation >= sales_gap_warning_threshold (default 10%) → severity = 'warning'
+//      例: 期待30%, 実績18%, deviation=12 → warning
+//   4. それ以外 → severity = 'ok'
+//      例: 期待30%, 実績44%, deviation=-14 → ok (高マージン)
+//      例: 期待30%, 実績25%, deviation=5 → ok (閾値内)
+//
+// テストケース例:
+//   原価 2,881,290 / 売価 5,200,000 → margin 44.59%, deviation -14.59 → ok
+//   原価 2,881,290 / 売価 3,200,000 → margin 9.96%,  deviation 20.04 → error
+//   原価 2,881,290 / 売価 3,800,000 → margin 24.15%, deviation 5.85  → ok
+//   原価 2,881,290 / 売価 3,500,000 → margin 17.68%, deviation 12.32 → warning
+//   原価 2,881,290 / 売価 2,500,000 → margin -15.25%, (赤字)       → error
+// ==========================================================
+interface GapGroupDetail {
+  cost: number;
+  sale: number;
+  gap_amount: number;
+  gap_percent: number;
+  expected_margin: number;
+  actual_margin: number;
+}
+
 interface GapAnalysis {
   total_cost: number;
   total_sale_price: number;
   gap_amount: number;
   gap_percent: number;
-  standard_gap: { cost: number; sale: number; gap_amount: number; gap_percent: number; expected_margin: number; actual_margin: number };
-  solar_gap: { cost: number; sale: number; gap_amount: number; gap_percent: number; expected_margin: number; actual_margin: number };
-  option_gap: { cost: number; sale: number; gap_amount: number; gap_percent: number; expected_margin: number; actual_margin: number };
+  standard_gap: GapGroupDetail;
+  solar_gap: GapGroupDetail;
+  option_gap: GapGroupDetail;
   overall_margin_rate: number;
+  expected_margin_rate: number;
+  margin_deviation: number;
   severity: 'ok' | 'warning' | 'error';
+  severity_reason: string;
   thresholds: Record<string, number>;
 }
 
@@ -127,20 +164,33 @@ function calculateGap(
   const optionGap = calcGroup(optionCost, optionSale, thresholds.default_option_margin_rate);
 
   // Determine severity: compare actual margin vs expected
-  // If overall margin falls below expected by more than threshold, it's a warning/error
-  const expectedOverallMargin = thresholds.default_standard_margin_rate; // use standard as baseline
-  const marginDeviation = expectedOverallMargin - overallMargin; // positive = below expected
+  // margin_deviation > 0 = below expected, < 0 = above expected
+  const expectedOverallMargin = thresholds.default_standard_margin_rate;
+  const marginDeviation = Math.round((expectedOverallMargin - overallMargin) * 100) / 100;
 
   let severity: 'ok' | 'warning' | 'error' = 'ok';
-  if (marginDeviation >= thresholds.sales_gap_error_threshold) {
-    severity = 'error';
-  } else if (marginDeviation >= thresholds.sales_gap_warning_threshold) {
-    severity = 'warning';
-  }
+  let severityReason = 'マージン閾値内';
 
-  // Also check if sale price is below cost (negative margin)
+  // Priority 1: 赤字チェック
   if (totalSale > 0 && totalSale < totalCost) {
     severity = 'error';
+    severityReason = `赤字: 売価(${totalSale}) < 原価(${totalCost})`;
+  }
+  // Priority 2: エラー閾値
+  else if (marginDeviation >= thresholds.sales_gap_error_threshold) {
+    severity = 'error';
+    severityReason = `マージン不足(error): 乖離${marginDeviation}% >= 閾値${thresholds.sales_gap_error_threshold}%`;
+  }
+  // Priority 3: 警告閾値
+  else if (marginDeviation >= thresholds.sales_gap_warning_threshold) {
+    severity = 'warning';
+    severityReason = `マージン注意(warning): 乖離${marginDeviation}% >= 閾値${thresholds.sales_gap_warning_threshold}%`;
+  }
+  // Priority 4: OK（高マージン含む）
+  else {
+    severityReason = marginDeviation < 0
+      ? `高マージン: 期待${expectedOverallMargin}%を${Math.abs(marginDeviation)}%上回る`
+      : `マージン閾値内: 乖離${marginDeviation}% < 閾値${thresholds.sales_gap_warning_threshold}%`;
   }
 
   return {
@@ -152,7 +202,10 @@ function calculateGap(
     solar_gap: solarGap,
     option_gap: optionGap,
     overall_margin_rate: Math.round(overallMargin * 100) / 100,
+    expected_margin_rate: expectedOverallMargin,
+    margin_deviation: marginDeviation,
     severity,
+    severity_reason: severityReason,
     thresholds,
   };
 }
