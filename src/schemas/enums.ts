@@ -111,10 +111,19 @@ export const PhaseType = z.enum([
   'consultation_rough', 'internal_estimate', 'contract_estimate', 'execution_budget'
 ]);
 
-// === 手修正理由カテゴリ (16_UX_RISK_PREVENTION_DESIGN UX-04) ===
+// === 24. cost_inclusion_rules テーブル (CR-01) ===
+export const InclusionType = z.enum(['always', 'conditional', 'never', 'manual']);
+
+export const TargetSummaryGroup = z.enum(['total', 'standard', 'solar', 'option', 'overhead', 'other']);
+
+// === 25. lineup_option_groups テーブル (CR-01) ===
+// Lineup enum は #1 で定義済み
+
+// === 手修正理由カテゴリ (CR-02 / CR-07 / 16_UX_RISK_PREVENTION_DESIGN) ===
+// NOTE: DB の CHECK 制約は ALTER TABLE ADD COLUMN では追加不可のため、Zod で enforce
 export const OverrideReasonCategory = z.enum([
-  'vendor_quote', 'site_condition', 'customer_request', 'design_change',
-  'material_change', 'historical_adjustment', 'manager_directive', 'other'
+  'site_condition', 'customer_request', 'regulatory', 'spec_change',
+  'price_update', 'correction', 'vendor_quote', 'other'
 ]);
 
 // === Enum数カウント（検証用） ===
@@ -149,6 +158,8 @@ export const ENUM_COUNT = {
   SettingType: SettingType.options.length,             // 5
   PriceType: PriceType.options.length,                // 2
   PhaseType: PhaseType.options.length,                // 4
+  InclusionType: InclusionType.options.length,                  // 4
+  TargetSummaryGroup: TargetSummaryGroup.options.length,        // 6
   OverrideReasonCategory: OverrideReasonCategory.options.length, // 8
-  _total: 31 // 31 enum definitions
+  _total: 33 // 33 enum definitions
 };

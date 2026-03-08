@@ -1,10 +1,12 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { createQueueService, hasActiveJob, completeJob, failJob } from './services/queueService';
 
 type Bindings = {
   DB: D1Database;
   DEV_USER_EMAIL?: string;
   OPENAI_API_KEY?: string;
+  SNAPSHOT_QUEUE?: any; // Queue binding (optional - may not exist in local dev)
 };
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -457,6 +459,95 @@ app.get('/api/spike/queue-sim', async (c) => {
   }
 });
 
+// === CR-04: Queue Integration Test (production-ready pattern) ===
+app.get('/api/spike/queue-integration', async (c) => {
+  const db = c.env.DB;
+  const results: Record<string, unknown> = {};
+  const start = Date.now();
+
+  try {
+    // Setup: create test project for FK constraint
+    await db.prepare(`
+      INSERT OR IGNORE INTO projects (id, project_code, project_name, lineup, status)
+      VALUES (999, 'TEST-999', 'Queue Test Project', 'SHIN', 'draft')
+    `).run();
+
+    // Test 1: Queue service creation
+    const queueService = createQueueService(c.env);
+    results.queue_service_created = true;
+    results.queue_mode = c.env.SNAPSHOT_QUEUE ? 'queue' : 'sync_fallback';
+
+    // Test 2: Check exclusive constraint (no active jobs)
+    const hasActive = await hasActiveJob(db, 999);
+    results.exclusive_check_clean = !hasActive;
+
+    // Test 3: Send a test job
+    const jobResult = await queueService.sendSnapshotJob({
+      project_id: 999,
+      job_type: 'initial',
+      triggered_by: 1,
+      timestamp: Date.now(),
+    });
+    results.job_created = { job_id: jobResult.job_id, mode: jobResult.mode };
+
+    // Test 4: Exclusive constraint should now block
+    const hasActiveNow = await hasActiveJob(db, 999);
+    results.exclusive_constraint_active = hasActiveNow;
+
+    // Test 5: Complete the job
+    await completeJob(db, jobResult.job_id, 100); // fake snapshot_id=100
+    const completedJob = await db.prepare('SELECT * FROM cost_snapshot_jobs WHERE id = ?').bind(jobResult.job_id).first() as any;
+    results.job_completed = {
+      status: completedJob?.status,
+      result_snapshot_id: completedJob?.result_snapshot_id,
+      has_completed_at: !!completedJob?.completed_at,
+    };
+
+    // Test 6: After completion, exclusive constraint should clear
+    const hasActiveAfter = await hasActiveJob(db, 999);
+    results.exclusive_cleared_after_complete = !hasActiveAfter;
+
+    // Test 7: Test failure path
+    const failJobResult = await queueService.sendSnapshotJob({
+      project_id: 999,
+      job_type: 'regenerate_preserve_reviewed',
+      triggered_by: 1,
+      timestamp: Date.now(),
+    });
+    await failJob(db, failJobResult.job_id, 'Test error: simulated failure');
+    const failedJob = await db.prepare('SELECT * FROM cost_snapshot_jobs WHERE id = ?').bind(failJobResult.job_id).first() as any;
+    results.job_failed = {
+      status: failedJob?.status,
+      error_message: failedJob?.error_message,
+      has_completed_at: !!failedJob?.completed_at,
+    };
+
+    // Cleanup test data
+    await db.prepare('DELETE FROM cost_snapshot_jobs WHERE project_id = 999').run();
+    await db.prepare('DELETE FROM projects WHERE id = 999').run();
+    results.cleanup = 'OK';
+
+    results.duration_ms = Date.now() - start;
+    results.verdict = results.exclusive_constraint_active && results.exclusive_cleared_after_complete
+      && completedJob?.status === 'completed' && failedJob?.status === 'failed'
+      ? 'PASS' : 'FAIL';
+    results.note = c.env.SNAPSHOT_QUEUE
+      ? 'Real Cloudflare Queue used'
+      : 'Sync fallback mode (Queue binding not available). Production will use real Queue.';
+
+    return c.json(results);
+  } catch (e: any) {
+    results.error = e.message;
+    results.duration_ms = Date.now() - start;
+    results.verdict = 'FAIL';
+    try { 
+      await db.prepare('DELETE FROM cost_snapshot_jobs WHERE project_id = 999').run();
+      await db.prepare('DELETE FROM projects WHERE id = 999').run();
+    } catch {}
+    return c.json(results, 500);
+  }
+});
+
 // === DEEP: D1 Transaction Stability (repeated batch + concurrent simulation) ===
 app.get('/api/spike/deep/tx-stability', async (c) => {
   const db = c.env.DB;
@@ -767,6 +858,7 @@ app.get('/api/spike/run-all', async (c) => {
     { id: 'SP-04', name: 'Atomic Switch', path: '/api/spike/atomic-switch' },
     { id: 'SP-06', name: 'Batch Size', path: '/api/spike/batch-size' },
     { id: 'SP-07', name: 'Auth', path: '/api/spike/auth' },
+    { id: 'CR-04', name: 'Queue Integration', path: '/api/spike/queue-integration' },
     { id: 'DEEP-TX', name: 'TX Stability', path: '/api/spike/deep/tx-stability' },
     { id: 'DEEP-SNAP', name: 'Full Snapshot', path: '/api/spike/deep/full-snapshot' },
     { id: 'DEEP-SEED', name: 'Seed Integrity', path: '/api/spike/deep/seed-integrity' },
