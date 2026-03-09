@@ -20,7 +20,7 @@ const CreateProjectSchema = z.object({
   project_code: z.string().min(1).max(50),
   project_name: z.string().min(1).max(200),
   customer_name: z.string().optional(),
-  lineup: Lineup,
+  lineup: z.string().nullable().optional(), // null=未定, 'CUSTOM'=オーダーメイド, その他=ラインナップコード
   tsubo: z.number().positive().optional(),
   building_area_m2: z.number().positive().optional(),
   total_floor_area_m2: z.number().positive().optional(),
@@ -157,7 +157,7 @@ projectRoutes.post('/', requireRole('admin', 'manager', 'estimator'), async (c) 
       status, assigned_to, created_at, updated_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, datetime('now'), datetime('now'))
   `).bind(
-    d.project_code, d.project_name, d.customer_name || null, d.lineup,
+    d.project_code, d.project_name, d.customer_name || null, d.lineup ?? null,
     d.tsubo || null, d.building_area_m2 || null, d.total_floor_area_m2 || null,
     d.prefecture || null, d.city || null,
     d.insulation_grade || null, d.has_wb ?? 1, d.fire_zone_type || 'standard',
@@ -189,7 +189,7 @@ projectRoutes.post('/', requireRole('admin', 'manager', 'estimator'), async (c) 
 const UpdateProjectSchema = z.object({
   project_name: z.string().min(1).max(200).optional(),
   customer_name: z.string().max(200).nullable().optional(),
-  lineup: Lineup.optional(),
+  lineup: z.string().nullable().optional(), // null=未定, 'CUSTOM'=オーダーメイド
   status: ProjectStatus.optional(),
   tsubo: z.number().positive().nullable().optional(),
   building_area_m2: z.number().positive().nullable().optional(),

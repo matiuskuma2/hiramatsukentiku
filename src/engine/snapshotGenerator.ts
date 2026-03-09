@@ -385,6 +385,27 @@ function evaluateItem(project: any, item: any, rules: any[]): EvaluationResult {
 
   const autoAmount = calculateAmount(item.calculation_type, quantity, unitPrice, fixedAmount);
 
+  // Lineup-specific warnings for items that depend on lineup
+  const lineupVal = project.lineup;
+  const isLineupDependent = item.calculation_type === 'lineup_fixed' ||
+    rules.some(r => {
+      try {
+        const conds = JSON.parse(r.conditions_json || '[]');
+        return conds.some((c: any) => c.field === 'lineup');
+      } catch { return false; }
+    });
+
+  if (isLineupDependent && isSelected && (!lineupVal || lineupVal === 'CUSTOM')) {
+    const reason = !lineupVal ? 'ラインナップ未定' : 'オーダーメイド案件';
+    warnings.push({
+      type: 'manual_required', severity: 'warning',
+      message: `${item.item_name}: ${reason}のため自動計算できません。手動で金額を入力してください`,
+      recommendation: '業者見積もりを取得するか、ラインナップ確定後に再計算してください',
+      detail: { lineup: lineupVal, calculation_type: item.calculation_type },
+      source: 'system',
+    });
+  }
+
   if (item.requires_manual_confirmation && isSelected) {
     warnings.push({
       type: 'manual_required', severity: 'warning',

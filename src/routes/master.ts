@@ -448,4 +448,67 @@ masterRoutes.get('/users/me', async (c) => {
   } satisfies ApiResponse);
 });
 
+// ==================================================
+// Lineup CRUD
+// ==================================================
+
+// --------------------------------------------------
+// GET /api/master/lineups
+// 権限: all (ログイン済み)
+// --------------------------------------------------
+masterRoutes.get('/lineups', async (c) => {
+  const db = c.env.DB;
+  const activeOnly = c.req.query('active_only') !== 'false';
+  let sql = 'SELECT code, name, short_name, description, is_custom, sort_order, is_active, created_at, updated_at FROM lineups';
+  if (activeOnly) sql += ' WHERE is_active = 1';
+  sql += ' ORDER BY sort_order ASC';
+  const result = await db.prepare(sql).all();
+  return c.json({ success: true, data: result.results, meta: { total: result.results?.length || 0 } } satisfies ApiResponse);
+});
+
+// --------------------------------------------------
+// POST /api/master/lineups (admin only)
+// --------------------------------------------------
+masterRoutes.post('/lineups', requireRole('admin'), async (c) => {
+  const db = c.env.DB;
+  let body: any;
+  try { body = await c.req.json(); } catch { return c.json({ success: false, error: 'Invalid JSON body' }, 400); }
+  if (!body.code || !body.name) return c.json({ success: false, error: 'code と name は必須です' }, 400);
+  const existing = await db.prepare('SELECT code FROM lineups WHERE code = ?').bind(body.code).first();
+  if (existing) return c.json({ success: false, error: `コード '${body.code}' は既に存在します` }, 409);
+  const maxOrder = await db.prepare('SELECT MAX(sort_order) as mx FROM lineups WHERE is_custom = 0').first() as any;
+  const sortOrder = body.sort_order || (maxOrder?.mx || 0) + 10;
+  await db.prepare(`
+    INSERT INTO lineups (code, name, short_name, description, is_custom, sort_order, is_active, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, 1, datetime('now'), datetime('now'))
+  `).bind(body.code, body.name, body.short_name || body.name, body.description || null, body.is_custom ? 1 : 0, sortOrder).run();
+  const created = await db.prepare('SELECT * FROM lineups WHERE code = ?').bind(body.code).first();
+  return c.json({ success: true, data: created, message: 'ラインナップを追加しました' }, 201);
+});
+
+// --------------------------------------------------
+// PATCH /api/master/lineups/:code (admin only)
+// --------------------------------------------------
+masterRoutes.patch('/lineups/:code', requireRole('admin'), async (c) => {
+  const db = c.env.DB;
+  const code = c.req.param('code');
+  let body: any;
+  try { body = await c.req.json(); } catch { return c.json({ success: false, error: 'Invalid JSON body' }, 400); }
+  const item = await db.prepare('SELECT * FROM lineups WHERE code = ?').bind(code).first();
+  if (!item) return c.json({ success: false, error: `ラインナップが見つかりません: ${code}` }, 404);
+  const sets: string[] = []; const vals: any[] = [];
+  if (body.name !== undefined) { sets.push('name = ?'); vals.push(body.name); }
+  if (body.short_name !== undefined) { sets.push('short_name = ?'); vals.push(body.short_name); }
+  if (body.description !== undefined) { sets.push('description = ?'); vals.push(body.description || null); }
+  if (body.is_custom !== undefined) { sets.push('is_custom = ?'); vals.push(body.is_custom ? 1 : 0); }
+  if (body.sort_order !== undefined) { sets.push('sort_order = ?'); vals.push(body.sort_order); }
+  if (body.is_active !== undefined) { sets.push('is_active = ?'); vals.push(body.is_active ? 1 : 0); }
+  if (sets.length === 0) return c.json({ success: false, error: '変更がありません' }, 400);
+  sets.push("updated_at = datetime('now')");
+  vals.push(code);
+  await db.prepare(`UPDATE lineups SET ${sets.join(', ')} WHERE code = ?`).bind(...vals).run();
+  const updated = await db.prepare('SELECT * FROM lineups WHERE code = ?').bind(code).first();
+  return c.json({ success: true, data: updated, message: 'ラインナップを更新しました' });
+});
+
 export default masterRoutes;

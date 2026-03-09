@@ -182,7 +182,8 @@ uiRoutes.get('/ui/projects', (c) => {
               <span class="px-2 py-0.5 text-xs rounded-full font-medium" :class="statusClass(p.status)" x-text="fmt.status(p.status)"></span>
             </div>
             <div class="flex items-center gap-3 text-xs text-gray-500">
-              <span x-show="p.lineup"><i class="fas fa-home mr-0.5"></i><span x-text="p.lineup"></span></span>
+              <span x-show="p.lineup"><i class="fas fa-home mr-0.5"></i><span x-text="lineupName(p.lineup)"></span></span>
+              <span x-show="!p.lineup" class="text-amber-500"><i class="fas fa-question-circle mr-0.5"></i>未定</span>
               <span x-show="p.tsubo"><i class="fas fa-ruler-combined mr-0.5"></i><span x-text="p.tsubo + '坪'"></span></span>
               <span x-show="p.customer_name"><i class="fas fa-user mr-0.5"></i><span x-text="p.customer_name"></span></span>
             </div>
@@ -210,7 +211,10 @@ uiRoutes.get('/ui/projects', (c) => {
           <div class="space-y-4">
             <div class="grid grid-cols-2 gap-3">
               <div><label class="block text-xs font-medium text-gray-500 mb-1">案件コード <span class="text-red-400">*</span></label><input x-model="form.project_code" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500 focus:border-transparent" placeholder="2026-001"></div>
-              <div><label class="block text-xs font-medium text-gray-500 mb-1">ラインナップ <span class="text-red-400">*</span></label><select x-model="form.lineup" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500"><option value="SHIN">SHIN</option><option value="RIN">RIN</option><option value="MOKU_OOYANE">MOKU 大屋根</option><option value="MOKU_HIRAYA">MOKU 平屋</option><option value="MOKU_ROKU">MOKU ROKU</option></select></div>
+              <div><label class="block text-xs font-medium text-gray-500 mb-1">ラインナップ</label><select x-model="form.lineup" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500"><option value="">未定（後で選択）</option><template x-for="lu in lineups" :key="lu.code"><option :value="lu.code" x-text="lu.name + (lu.is_custom ? ' (自由設計)' : '')"></option></template></select>
+                <p x-show="form.lineup === ''" class="text-xs text-amber-500 mt-1"><i class="fas fa-info-circle mr-0.5"></i>未定の場合、ラインナップ依存の工種は手動入力が必要です</p>
+                <p x-show="form.lineup === 'CUSTOM'" class="text-xs text-blue-500 mt-1"><i class="fas fa-info-circle mr-0.5"></i>オーダーメイド: 全工種の金額を手動確認してください</p>
+              </div>
             </div>
             <div><label class="block text-xs font-medium text-gray-500 mb-1">案件名 <span class="text-red-400">*</span></label><input x-model="form.project_name" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500" placeholder="山田邸新築工事"></div>
             <div><label class="block text-xs font-medium text-gray-500 mb-1">顧客名</label><input x-model="form.customer_name" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500"></div>
@@ -245,12 +249,16 @@ uiRoutes.get('/ui/projects', (c) => {
           {value:'in_progress', label:'進行中', icon:'fas fa-play-circle'},{value:'needs_review', label:'要レビュー', icon:'fas fa-exclamation-circle'},
           {value:'reviewed', label:'レビュー済', icon:'fas fa-check-circle'},
         ],
-        form: { project_code:'', project_name:'', lineup:'SHIN', customer_name:'', tsubo:null, building_area_m2:null, total_floor_area_m2:null, insulation_grade:'', roof_shape:'', fire_zone_type:'standard' },
+        lineups: [],
+        form: { project_code:'', project_name:'', lineup:'', customer_name:'', tsubo:null, building_area_m2:null, total_floor_area_m2:null, insulation_grade:'', roof_shape:'', fire_zone_type:'standard' },
         statusClass(s) { return {'draft':'bg-gray-100 text-gray-600','calculating':'bg-indigo-100 text-indigo-700','in_progress':'bg-blue-100 text-blue-700','needs_review':'bg-yellow-100 text-yellow-700','reviewed':'bg-green-100 text-green-700','archived':'bg-purple-100 text-purple-600'}[s] || 'bg-gray-100 text-gray-600'; },
-        async load() { this.loading = true; const q = this.filter ? '?status=' + this.filter : ''; const res = await api.get('/projects' + q); if (res.success) { this.projects = res.data; this.meta = res.meta || { total: res.data?.length || 0 }; } this.loading = false; },
+        lineupName(code) { if (!code) return '未定'; const lu = this.lineups.find(l=>l.code===code); return lu ? lu.name : code; },
+        async loadLineups() { const r = await api.get('/master/lineups'); if(r.success) this.lineups = r.data || []; },
+        async load() { this.loading = true; await this.loadLineups(); const q = this.filter ? '?status=' + this.filter : ''; const res = await api.get('/projects' + q); if (res.success) { this.projects = res.data; this.meta = res.meta || { total: res.data?.length || 0 }; } this.loading = false; },
         async create() {
           this.creating = true; this.createError = '';
           const body = { ...this.form };
+          if (body.lineup === '') body.lineup = null; // 未定
           if (!body.tsubo) delete body.tsubo; if (!body.building_area_m2) delete body.building_area_m2; if (!body.total_floor_area_m2) delete body.total_floor_area_m2;
           if (!body.insulation_grade) delete body.insulation_grade; if (!body.roof_shape) delete body.roof_shape; if (!body.customer_name) delete body.customer_name;
           const res = await api.post('/projects', body); this.creating = false;
@@ -288,7 +296,9 @@ uiRoutes.get('/ui/projects/:id', (c) => {
             </div>
             <h1 class="text-xl font-bold text-gray-900" x-text="project?.project_name"></h1>
             <div class="flex items-center gap-3 text-sm text-gray-500 mt-1.5">
-              <span x-show="project?.lineup"><i class="fas fa-home mr-1 text-gray-400"></i><span x-text="project?.lineup"></span></span>
+              <span x-show="project?.lineup && project?.lineup !== 'CUSTOM'"><i class="fas fa-home mr-1 text-gray-400"></i><span x-text="lineupName(project?.lineup)"></span></span>
+              <span x-show="project?.lineup === 'CUSTOM'" class="text-blue-600 font-medium"><i class="fas fa-drafting-compass mr-1"></i>オーダーメイド</span>
+              <span x-show="!project?.lineup" class="text-amber-500 font-medium"><i class="fas fa-question-circle mr-1"></i>ラインナップ未定</span>
               <span x-show="project?.tsubo"><i class="fas fa-ruler-combined mr-1 text-gray-400"></i><span x-text="project?.tsubo + '坪'"></span></span>
               <span x-show="project?.customer_name"><i class="fas fa-user mr-1 text-gray-400"></i><span x-text="project?.customer_name"></span></span>
               <span x-show="project?.assigned_to_name" class="text-hm-600"><i class="fas fa-user-pen mr-1"></i>担当: <span x-text="project?.assigned_to_name"></span></span>
@@ -378,9 +388,12 @@ uiRoutes.get('/ui/projects/:id', (c) => {
               <input :value="project?.customer_name || ''" @change="saveProjectEdit('customer_name', $event.target.value || null)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500 focus:border-transparent" placeholder="山田太郎"></div>
           </div>
           <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-            <div><label class="block text-xs font-medium text-gray-500 mb-1">ラインナップ <span class="text-red-400">*</span></label>
-              <select :value="project?.lineup" @change="saveProjectEdit('lineup', $event.target.value)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500">
-                <option value="SHIN">SHIN</option><option value="RIN">RIN</option><option value="MOKU_OOYANE">MOKU 大屋根</option><option value="MOKU_HIRAYA">MOKU 平屋</option><option value="MOKU_ROKU">MOKU ROKU</option></select></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">ラインナップ</label>
+              <select :value="project?.lineup || ''" @change="saveProjectEdit('lineup', $event.target.value || null)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500">
+                <option value="">未定</option><template x-for="lu in lineups" :key="lu.code"><option :value="lu.code" x-text="lu.name + (lu.is_custom ? ' (自由設計)' : '')"></option></template></select>
+              <p x-show="!project?.lineup" class="text-xs text-amber-500 mt-1"><i class="fas fa-exclamation-triangle mr-0.5"></i>未定: ラインナップ依存工種は手動入力</p>
+              <p x-show="project?.lineup === 'CUSTOM'" class="text-xs text-blue-500 mt-1"><i class="fas fa-info-circle mr-0.5"></i>オーダーメイド: 全工種要確認</p>
+            </div>
             <div><label class="block text-xs font-medium text-gray-500 mb-1">ステータス</label>
               <select :value="project?.status" @change="saveProjectEdit('status', $event.target.value)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500">
                 <option value="draft">下書き</option><option value="in_progress">進行中</option><option value="needs_review">要レビュー</option><option value="reviewed">レビュー済</option><option value="archived">アーカイブ</option></select></div>
@@ -854,7 +867,7 @@ uiRoutes.get('/ui/projects/:id', (c) => {
     function projectDetail(projectId) {
       return {
         project: null, snapshot: null, items: [], summaries: [], diffs: [], diffMeta: null,
-        risk: null, gap: null, warnings: [], salesEstimates: [],
+        risk: null, gap: null, warnings: [], salesEstimates: [], lineups: [],
         aiStatus: null, aiCheckResult: null, aiWarningsList: [], aiWarnings: null,
         loading: true, enqueueing: false, salesSaving: false, aiChecking: false, diffsLoading: false, parsing: false,
         activeTab: 'risk', showRegenModal: false, regenMode: 'regenerate_preserve_reviewed',
@@ -875,7 +888,8 @@ uiRoutes.get('/ui/projects/:id', (c) => {
           { id:'ai', label:'AI・警告', icon:'fas fa-robot', badge:0, badgeColor:'bg-purple-500 text-white' },
         ],
         statusClass(s) { return {'draft':'bg-gray-100 text-gray-600','calculating':'bg-indigo-100 text-indigo-700','in_progress':'bg-blue-100 text-blue-700','needs_review':'bg-yellow-100 text-yellow-700','reviewed':'bg-green-100 text-green-700','archived':'bg-purple-100 text-purple-600'}[s] || 'bg-gray-100 text-gray-600'; },
-        async init() { await this.loadAll(); this.loading = false; },
+        lineupName(code) { if (!code) return '未定'; const lu = this.lineups.find(l=>l.code===code); return lu ? lu.name : code; },
+        async init() { const luRes = await api.get('/master/lineups'); if(luRes.success) this.lineups = luRes.data || []; await this.loadAll(); this.loading = false; },
         async loadAll() {
           const pRes = await api.get('/projects/' + projectId);
           if (pRes.success) this.project = pRes.data;
@@ -1041,6 +1055,7 @@ uiRoutes.get('/ui/admin', (c) => {
       <div class="flex border-b mb-5 bg-white rounded-t-xl overflow-x-auto">
         <button @click="tab='users'" class="px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap" :class="tab==='users' ? 'border-hm-600 text-hm-700 bg-hm-50/50' : 'border-transparent text-gray-500 hover:text-gray-700'"><i class="fas fa-users mr-1.5"></i>ユーザー管理</button>
         <button @click="tab='master'" class="px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap" :class="tab==='master' ? 'border-hm-600 text-hm-700 bg-hm-50/50' : 'border-transparent text-gray-500 hover:text-gray-700'"><i class="fas fa-database mr-1.5"></i>単価マスタ</button>
+        <button @click="tab='lineups'" class="px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap" :class="tab==='lineups' ? 'border-hm-600 text-hm-700 bg-hm-50/50' : 'border-transparent text-gray-500 hover:text-gray-700'"><i class="fas fa-layer-group mr-1.5"></i>ラインナップ</button>
         <button @click="tab='settings'" class="px-4 py-3 text-sm font-medium border-b-2 transition whitespace-nowrap" :class="tab==='settings' ? 'border-hm-600 text-hm-700 bg-hm-50/50' : 'border-transparent text-gray-500 hover:text-gray-700'"><i class="fas fa-sliders-h mr-1.5"></i>システム設定</button>
       </div>
 
@@ -1246,6 +1261,82 @@ uiRoutes.get('/ui/admin', (c) => {
         </div>
       </div>
 
+      <!-- TAB: Lineups -->
+      <div x-show="tab==='lineups'" class="fade-in space-y-4">
+        <div class="flex justify-between items-center">
+          <div><h3 class="font-semibold text-gray-800"><i class="fas fa-layer-group mr-1.5 text-hm-600"></i>ラインナップ管理</h3>
+            <p class="text-xs text-gray-500 mt-0.5">平松建築の商品シリーズを管理します。「未定」は案件作成時のデフォルトで、ラインナップ選択肢には含まれません。</p></div>
+          <button @click="openLineupCreate()" class="bg-hm-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-hm-700 transition shadow-sm"><i class="fas fa-plus mr-1"></i>新規追加</button>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border overflow-hidden"><div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">コード</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">名前</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">略称</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">説明</th>
+            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500">種別</th>
+            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500">並び順</th>
+            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500">状態</th>
+            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500">操作</th>
+          </tr></thead><tbody class="divide-y divide-gray-100">
+            <template x-for="lu in lineupsList" :key="lu.code"><tr class="hover:bg-gray-50 text-sm">
+              <td class="px-4 py-3 font-mono text-xs text-hm-600 font-medium" x-text="lu.code"></td>
+              <td class="px-4 py-3 font-medium text-gray-800" x-text="lu.name"></td>
+              <td class="px-4 py-3 text-gray-500 text-xs" x-text="lu.short_name"></td>
+              <td class="px-4 py-3 text-gray-500 text-xs max-w-xs truncate" x-text="lu.description || '-'"></td>
+              <td class="px-4 py-3 text-center"><span class="px-2 py-0.5 text-xs rounded-full" :class="lu.is_custom ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'" x-text="lu.is_custom ? 'カスタム' : 'シリーズ'"></span></td>
+              <td class="px-4 py-3 text-center text-gray-500 text-xs" x-text="lu.sort_order"></td>
+              <td class="px-4 py-3 text-center"><span class="px-2 py-0.5 text-xs rounded-full" :class="lu.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'" x-text="lu.is_active ? '有効' : '無効'"></span></td>
+              <td class="px-4 py-3 text-center">
+                <button @click="openLineupEdit(lu)" class="text-hm-600 hover:text-hm-800 p-1 hover:bg-hm-50 rounded" title="編集"><i class="fas fa-pen-to-square"></i></button>
+                <button x-show="lu.is_active" @click="toggleLineup(lu, false)" class="text-gray-400 hover:text-red-600 p-1 hover:bg-red-50 rounded ml-1" title="無効化"><i class="fas fa-toggle-on"></i></button>
+                <button x-show="!lu.is_active" @click="toggleLineup(lu, true)" class="text-gray-400 hover:text-green-600 p-1 hover:bg-green-50 rounded ml-1" title="有効化"><i class="fas fa-toggle-off"></i></button>
+              </td>
+            </tr></template>
+          </tbody></table>
+          <div x-show="lineupsList.length === 0" class="py-6 text-center text-gray-400">ラインナップがありません</div>
+        </div></div>
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-700">
+          <p class="font-semibold"><i class="fas fa-info-circle mr-1"></i>ラインナップについて</p>
+          <ul class="mt-2 space-y-1 text-xs">
+            <li><strong>未定</strong>: 案件作成時のデフォルト。ラインナップ依存の工種は自動計算されず手動入力が必要。後から選択して再計算可能。</li>
+            <li><strong>シリーズ (SHIN / RIN / MOKU)</strong>: 各シリーズに紐づいた工種単価・ルールで自動計算。</li>
+            <li><strong>オーダーメイド (CUSTOM)</strong>: 既製シリーズに当てはまらない自由設計案件。全ラインナップ依存工種は手動入力。</li>
+          </ul>
+        </div>
+      </div>
+      <!-- Lineup Edit Modal -->
+      <div x-show="lineupEditModal.show" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" @click.self="lineupEditModal.show=false">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 slide-in" @click.stop>
+          <h2 class="text-lg font-bold mb-4" x-text="lineupEditModal.isNew ? '新規ラインナップ' : 'ラインナップ編集'"></h2>
+          <div class="space-y-3">
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">コード <span class="text-red-400">*</span></label>
+              <input x-model="lineupEditModal.form.code" :disabled="!lineupEditModal.isNew" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-hm-500 disabled:bg-gray-100" placeholder="NEW_SERIES"></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">名前 <span class="text-red-400">*</span></label>
+              <input x-model="lineupEditModal.form.name" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500" placeholder="新シリーズ"></div>
+            <div class="grid grid-cols-2 gap-3">
+              <div><label class="block text-xs font-medium text-gray-500 mb-1">略称</label>
+                <input x-model="lineupEditModal.form.short_name" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500"></div>
+              <div><label class="block text-xs font-medium text-gray-500 mb-1">並び順</label>
+                <input x-model.number="lineupEditModal.form.sort_order" type="number" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500"></div>
+            </div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">説明</label>
+              <textarea x-model="lineupEditModal.form.description" rows="2" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500" placeholder="シリーズの説明"></textarea></div>
+            <div><label class="flex items-center gap-2 text-sm">
+              <input type="checkbox" x-model="lineupEditModal.form.is_custom" class="rounded border-gray-300 text-hm-600 focus:ring-hm-500">
+              <span>カスタム（オーダーメイド系）</span></label></div>
+          </div>
+          <div x-show="lineupError" class="mt-3 p-2 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600" x-text="lineupError"></div>
+          <div class="flex justify-end gap-2 mt-5">
+            <button @click="lineupEditModal.show=false" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition">キャンセル</button>
+            <button @click="saveLineup()" class="px-5 py-2 text-sm bg-hm-600 text-white rounded-lg hover:bg-hm-700 transition font-medium" :disabled="lineupSaving">
+              <span x-show="!lineupSaving"><i class="fas fa-check mr-1"></i>保存</span>
+              <span x-show="lineupSaving"><i class="fas fa-spinner fa-spin mr-1"></i>保存中...</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- TAB: System Settings -->
       <div x-show="tab==='settings'" class="fade-in space-y-4">
         <div class="bg-white rounded-xl border p-5">
@@ -1274,12 +1365,14 @@ uiRoutes.get('/ui/admin', (c) => {
     <script>
     function adminPanel() {
       return {
-        tab: 'users', users: [], settings: [], categories: [], masterItems: [], masterLoading: false, masterSearch: '', masterCategory: '',
+        tab: 'users', users: [], settings: [], categories: [], masterItems: [], lineupsList: [], masterLoading: false, masterSearch: '', masterCategory: '',
         showCreateUser: false, userSaving: false, userError: '',
         userForm: { name:'', email:'', role:'estimator', password:'', department:'' },
         editUserModal: { show:false, user:null, form:{ name:'', role:'', status:'', password:'' } },
         masterEditModal: { show:false, item:null, form:{ base_unit_price:null, base_fixed_amount:null, unit:'', vendor_name:'', note:'' } },
         masterCreateModal: { show:false, form:{ category_code:'', item_code:'', item_name:'', calculation_type:'area_based', unit:'', base_unit_price:null, base_fixed_amount:null, vendor_name:'', section_type:'basic', note:'' } },
+        lineupEditModal: { show:false, isNew:true, code:null, form:{ code:'', name:'', short_name:'', description:'', sort_order:100, is_custom:false } },
+        lineupSaving: false, lineupError: '',
         masterSaving: false, masterError: '',
         toast: { show:false, message:'', type:'info' },
         roleLabel(r) { return {admin:'管理者',manager:'マネージャー',estimator:'見積担当',viewer:'閲覧者'}[r]||r; },
@@ -1287,7 +1380,7 @@ uiRoutes.get('/ui/admin', (c) => {
         calcLabel(t) { return {per_m2:'面積(m2)ベース',per_tsubo:'坪ベース',per_meter:'mベース',per_piece:'個ベース',range_lookup:'範囲参照',fixed_amount:'固定額',lineup_fixed:'ラインナップ固定',rule_lookup:'ルール参照',manual_quote:'手動見積',product_selection:'商品選択',package_with_delta:'パッケージ',threshold_surcharge:'閾値加算'}[t]||t; },
         showToast(msg, type='success') { this.toast={show:true,message:msg,type}; setTimeout(()=>{this.toast.show=false;},3000); },
         async init() {
-          await Promise.all([this.loadUsers(), this.loadSettings(), this.loadCategories(), this.loadMasterItems()]);
+          await Promise.all([this.loadUsers(), this.loadSettings(), this.loadCategories(), this.loadMasterItems(), this.loadLineups()]);
         },
         async loadUsers() { const r = await api.get('/admin/users'); if(r.success) this.users = r.data || []; },
         async loadSettings() { const r = await api.get('/master/system-settings'); if(r.success) this.settings = r.data || []; },
@@ -1346,6 +1439,34 @@ uiRoutes.get('/ui/admin', (c) => {
           this.masterSaving=false;
           if(r.success) { this.masterCreateModal.show=false; this.showToast('新規工種を追加しました'); await this.loadMasterItems(); }
           else { this.masterError = r.error || '追加に失敗しました'; }
+        },
+        async loadLineups() { const r = await api.get('/master/lineups?active_only=false'); if(r.success) this.lineupsList = r.data || []; },
+        openLineupCreate() {
+          this.lineupEditModal = { show:true, isNew:true, code:null, form:{ code:'', name:'', short_name:'', description:'', sort_order:100, is_custom:false } };
+          this.lineupError = '';
+        },
+        openLineupEdit(lu) {
+          this.lineupEditModal = { show:true, isNew:false, code:lu.code, form:{ code:lu.code, name:lu.name, short_name:lu.short_name||'', description:lu.description||'', sort_order:lu.sort_order, is_custom:!!lu.is_custom } };
+          this.lineupError = '';
+        },
+        async saveLineup() {
+          this.lineupSaving = true; this.lineupError = '';
+          const f = this.lineupEditModal.form;
+          if (!f.code || !f.name) { this.lineupError = 'コードと名前は必須です'; this.lineupSaving = false; return; }
+          let r;
+          if (this.lineupEditModal.isNew) {
+            r = await api.post('/master/lineups', f);
+          } else {
+            r = await api.patch('/master/lineups/' + this.lineupEditModal.code, { name:f.name, short_name:f.short_name, description:f.description, sort_order:f.sort_order, is_custom:f.is_custom });
+          }
+          this.lineupSaving = false;
+          if (r.success) { this.lineupEditModal.show = false; this.showToast(this.lineupEditModal.isNew ? 'ラインナップを追加しました' : 'ラインナップを更新しました'); await this.loadLineups(); }
+          else { this.lineupError = r.error || '保存に失敗しました'; }
+        },
+        async toggleLineup(lu, active) {
+          const r = await api.patch('/master/lineups/' + lu.code, { is_active: active });
+          if (r.success) { this.showToast(active ? '有効化しました' : '無効化しました'); await this.loadLineups(); }
+          else { this.showToast(r.error || 'エラー', 'error'); }
         },
         async updateSetting(key, value) {
           const r = await api.patch('/master/system-settings/' + key, { setting_value: value });
@@ -1501,7 +1622,7 @@ uiRoutes.get('/ui/manual', (c) => {
               <div class="grid grid-cols-3 gap-2 mt-2 text-xs">
                 <div class="bg-white border rounded p-2"><strong>案件コード</strong> <span class="text-red-400">必須</span><br>例: 2026-001</div>
                 <div class="bg-white border rounded p-2"><strong>案件名</strong> <span class="text-red-400">必須</span><br>例: 山田邸新築工事</div>
-                <div class="bg-white border rounded p-2"><strong>ラインナップ</strong> <span class="text-red-400">必須</span><br>SHIN / RIN / MOKU</div>
+                <div class="bg-white border rounded p-2"><strong>ラインナップ</strong><br>SHIN / RIN / MOKU / オーダーメイド / 未定<br><span class="text-xs text-gray-400">未定・オーダーメイドは手動入力が必要</span></div>
               </div>
               <p class="text-xs text-gray-400 mt-2">坪数・面積・断熱等級・防火区分もここで入力できますが、後から「案件情報」タブで編集も可能です。</p>
             </div>
@@ -1845,7 +1966,7 @@ uiRoutes.get('/ui/manual', (c) => {
           <div class="bg-gray-50 rounded-lg p-3"><strong>工種</strong><br><span class="text-gray-500">建築の各作業区分（基礎工事、上棟費等）。現在58工種がマスタ登録済み。</span></div>
           <div class="bg-gray-50 rounded-lg p-3"><strong>マージン（粗利率）</strong><br><span class="text-gray-500">(売価-原価)/売価x100。30%が標準目標値。</span></div>
           <div class="bg-gray-50 rounded-lg p-3"><strong>ギャップ（乖離）</strong><br><span class="text-gray-500">期待粗利率と実際の粗利率の差。正値=マージン不足。</span></div>
-          <div class="bg-gray-50 rounded-lg p-3"><strong>ラインナップ</strong><br><span class="text-gray-500">平松建築の商品シリーズ。SHIN / RIN / MOKU（大屋根・平屋・ROKU）の5種類。</span></div>
+          <div class="bg-gray-50 rounded-lg p-3"><strong>ラインナップ</strong><br><span class="text-gray-500">平松建築の商品シリーズ。SHIN / RIN / MOKU（大屋根・平屋・ROKU）の5種類。「未定」は後から選択可能、「オーダーメイド」は既製シリーズに当てはまらない自由設計案件。管理画面で追加・編集可能。</span></div>
           <div class="bg-gray-50 rounded-lg p-3"><strong>リスクスコア</strong><br><span class="text-gray-500">案件の問題度。エラーx10、警告x3、情報x1で加算。</span></div>
           <div class="bg-gray-50 rounded-lg p-3"><strong>売価</strong><br><span class="text-gray-500">お客様に提示する販売価格（税抜）。原価+粗利=売価。</span></div>
           <div class="bg-gray-50 rounded-lg p-3"><strong>原価サマリ</strong><br><span class="text-gray-500">全工種の原価合計をカテゴリ別に集計した一覧。</span></div>

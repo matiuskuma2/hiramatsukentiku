@@ -22,8 +22,8 @@ const riskCentreRoutes = new Hono<AppEnv>();
 riskCentreRoutes.use('*', resolveUser);
 
 // Required fields for cost estimation
+// NOTE: lineup is handled separately with special null/CUSTOM logic
 const REQUIRED_FIELDS = [
-  { field: 'lineup', label: '商品ラインナップ', category: 'basic' },
   { field: 'tsubo', label: '坪数', category: 'area' },
   { field: 'building_area_m2', label: '建築面積(m²)', category: 'area' },
   { field: 'total_floor_area_m2', label: '延床面積(m²)', category: 'area' },
@@ -72,6 +72,34 @@ riskCentreRoutes.get('/:id/risk-centre', async (c) => {
   let warningCount = 0;
   let infoCount = 0;
 
+  // ==== 0. Lineup-specific warnings ====
+  const lineup = project.lineup;
+  if (lineup === null || lineup === undefined || lineup === '') {
+    // 未定
+    risks.push({
+      id: 'lineup_undecided',
+      category: 'input',
+      severity: 'warning',
+      title: 'ラインナップ未定',
+      description: 'ラインナップが未選択です。ラインナップ依存の工種（木工事等）は自動計算できず、手動入力が必要になります。ラインナップ確定後に再計算してください。',
+      action_required: true,
+      action_label: 'ラインナップを設定してください',
+    });
+    warningCount++;
+  } else if (lineup === 'CUSTOM') {
+    // オーダーメイド
+    risks.push({
+      id: 'lineup_custom',
+      category: 'input',
+      severity: 'info',
+      title: 'オーダーメイド案件',
+      description: 'オーダーメイド（シリーズ外）の案件です。ラインナップ依存の工種は全て手動入力が必要です。各工種の金額を業者見積もり等で確認してください。',
+      action_required: false,
+      action_label: '手動入力が必要な工種を確認',
+    });
+    infoCount++;
+  }
+
   // ==== 1. Unset Conditions (Input Completeness) ====
   const unsetRequired: Array<{ field: string; label: string; category: string }> = [];
   const setRequired: string[] = [];
@@ -82,6 +110,12 @@ riskCentreRoutes.get('/:id/risk-centre', async (c) => {
     } else {
       setRequired.push(f.field);
     }
+  }
+  // Count lineup as a required field for completion rate
+  if (lineup && lineup !== '') {
+    setRequired.push('lineup');
+  } else {
+    unsetRequired.push({ field: 'lineup', label: '商品ラインナップ', category: 'basic' });
   }
 
   const unsetRecommended: Array<{ field: string; label: string; category: string }> = [];
@@ -397,7 +431,35 @@ riskCentreRoutes.get('/:id/risk-centre', async (c) => {
     }
   }
 
-  // ==== 7. No Snapshot Warning ====
+  // ==== 7. Lineup-dependent items needing manual confirmation ====
+  if (project.current_snapshot_id && (!lineup || lineup === 'CUSTOM')) {
+    // Count items that depend on lineup but couldn't auto-calculate
+    const lineupDepResult = await db.prepare(`
+      SELECT COUNT(*) as cnt FROM project_cost_items
+      WHERE project_id = ? AND snapshot_id = ?
+        AND calculation_type IN ('lineup_fixed', 'rule_lookup')
+        AND is_selected = 1
+        AND (auto_amount = 0 OR auto_amount IS NULL)
+    `).bind(projectId, project.current_snapshot_id).first() as any;
+    const lineupDepCount = lineupDepResult?.cnt || 0;
+    if (lineupDepCount > 0) {
+      risks.push({
+        id: 'lineup_dependent_manual_items',
+        category: 'input',
+        severity: 'warning',
+        title: `ラインナップ依存の工種: ${lineupDepCount} 件が手動入力待ち`,
+        description: lineup === 'CUSTOM'
+          ? 'オーダーメイド案件のため、ラインナップ固定・ルール参照の工種は業者見積もり等で手動入力してください'
+          : 'ラインナップ未定のため自動計算できない工種があります。ラインナップ確定後に再計算するか、手動で金額を入力してください',
+        action_required: true,
+        action_label: '手動入力が必要な明細を確認',
+        detail: { count: lineupDepCount, lineup_status: lineup || '未定' },
+      });
+      warningCount++;
+    }
+  }
+
+  // ==== 8. No Snapshot Warning ====
   if (!project.current_snapshot_id) {
     risks.push({
       id: 'no_snapshot',

@@ -597,6 +597,17 @@ function evaluateItemForRegenerate(project: any, item: any, rules: any[]): EvalR
 
   const autoAmount = calcAmount(item.calculation_type, quantity, unitPrice, fixedAmount);
 
+  // Lineup-specific warnings
+  const lineupVal = project.lineup;
+  const isLineupDependent = item.calculation_type === 'lineup_fixed' ||
+    rules.some(r => {
+      try { const conds = JSON.parse(r.conditions_json || '[]'); return conds.some((c: any) => c.field === 'lineup'); } catch { return false; }
+    });
+  if (isLineupDependent && isSelected && (!lineupVal || lineupVal === 'CUSTOM')) {
+    const reason = !lineupVal ? 'ラインナップ未定' : 'オーダーメイド案件';
+    warnings.push({ type: 'manual_required', severity: 'warning', message: `${item.item_name}: ${reason}のため自動計算できません`, recommendation: '業者見積もりを取得するか、ラインナップ確定後に再計算してください', detail: { lineup: lineupVal }, source: 'system' });
+  }
+
   if (item.requires_manual_confirmation && isSelected) {
     warnings.push({ type: 'manual_required', severity: 'warning', message: `${item.item_name}: 手動見積もりが必要 (${item.calculation_type})`, recommendation: '業者見積もりを取得してください', source: 'system' });
   }

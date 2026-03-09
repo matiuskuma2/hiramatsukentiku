@@ -9,9 +9,8 @@ export const ProjectStatus = z.enum([
   'draft', 'calculating', 'in_progress', 'needs_review', 'reviewed', 'archived'
 ]);
 
-export const Lineup = z.enum([
-  'SHIN', 'RIN', 'MOKU_OOYANE', 'MOKU_HIRAYA', 'MOKU_ROKU'
-]);
+export const Lineup = z.string().nullable().optional();
+// lineup は lineups マスタテーブルで管理。null=未定, 'CUSTOM'=オーダーメイド, その他=ラインナップコード
 
 export const InsulationGrade = z.enum(['5', '6']);
 
@@ -145,7 +144,7 @@ export const OverrideReasonCategory = z.enum([
 // === Enum数カウント（検証用） ===
 export const ENUM_COUNT = {
   ProjectStatus: ProjectStatus.options.length,        // 6
-  Lineup: Lineup.options.length,                      // 5
+  Lineup: 6,                                            // managed in lineups table
   InsulationGrade: InsulationGrade.options.length,    // 2
   RoofShape: RoofShape.options.length,                // 5
   FireZoneType: FireZoneType.options.length,          // 3
