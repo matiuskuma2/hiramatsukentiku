@@ -2626,8 +2626,10 @@ uiRoutes.get('/ui/manual', (c) => {
           <a href="#statuses" class="text-hm-700 hover:text-hm-900 py-1 hover:bg-hm-50 px-2 rounded"><i class="fas fa-chevron-right text-xs mr-1"></i>9. ステータスの意味と遷移</a>
           <a href="#tabs" class="text-hm-700 hover:text-hm-900 py-1 hover:bg-hm-50 px-2 rounded"><i class="fas fa-chevron-right text-xs mr-1"></i>10. 各タブの詳細ガイド</a>
           <a href="#master" class="text-hm-700 hover:text-hm-900 py-1 hover:bg-hm-50 px-2 rounded"><i class="fas fa-chevron-right text-xs mr-1"></i>11. 単価マスタの変更方法</a>
-          <a href="#faq" class="text-hm-700 hover:text-hm-900 py-1 hover:bg-hm-50 px-2 rounded"><i class="fas fa-chevron-right text-xs mr-1"></i>12. よくある質問 (FAQ)</a>
-          <a href="#terms" class="text-hm-700 hover:text-hm-900 py-1 hover:bg-hm-50 px-2 rounded"><i class="fas fa-chevron-right text-xs mr-1"></i>13. 用語集</a>
+          <a href="#review-check" class="text-hm-700 hover:text-hm-900 py-1 hover:bg-hm-50 px-2 rounded"><i class="fas fa-chevron-right text-xs mr-1"></i>12. レビューチェック機能</a>
+          <a href="#calc-basis" class="text-hm-700 hover:text-hm-900 py-1 hover:bg-hm-50 px-2 rounded"><i class="fas fa-chevron-right text-xs mr-1"></i>13. 計算根拠モーダルの見方</a>
+          <a href="#faq" class="text-hm-700 hover:text-hm-900 py-1 hover:bg-hm-50 px-2 rounded"><i class="fas fa-chevron-right text-xs mr-1"></i>14. よくある質問 (FAQ)</a>
+          <a href="#terms" class="text-hm-700 hover:text-hm-900 py-1 hover:bg-hm-50 px-2 rounded"><i class="fas fa-chevron-right text-xs mr-1"></i>15. 用語集</a>
         </div>
       </div>
 
@@ -2652,6 +2654,18 @@ uiRoutes.get('/ui/manual', (c) => {
           </div>
           <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-xs">
             <i class="fas fa-shield-alt text-yellow-600 mr-1"></i><strong>管理者向け</strong>：ユーザーの追加・権限変更は <a href="/ui/admin" class="text-hm-600 underline">管理画面</a>（ナビの「管理」）で行えます。
+          </div>
+          <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
+            <h3 class="font-bold text-purple-800 mb-2"><i class="fas fa-key mr-1"></i>パスワードを忘れた場合</h3>
+            <p class="text-xs text-gray-600 mb-2">ログイン画面の「<strong>パスワードを忘れた方</strong>」リンクからリセットできます。</p>
+            <ol class="list-decimal list-inside space-y-1 text-xs text-gray-600">
+              <li>ログイン画面下部の「<strong class="text-hm-600">パスワードを忘れた方</strong>」をクリック</li>
+              <li>登録済みメールアドレスを入力して「<strong>リセットコード送信</strong>」</li>
+              <li>メールで届く<strong>6桁の確認コード</strong>を入力（有効期限: 30分）</li>
+              <li>新しいパスワード（4文字以上）を設定して「<strong>パスワード変更</strong>」</li>
+              <li>自動的にログイン画面に戻り、新パスワードでログイン可能</li>
+            </ol>
+            <p class="text-xs text-purple-600 mt-2"><i class="fas fa-envelope mr-1"></i>メールが届かない場合は迷惑メールフォルダを確認するか、管理者にお問い合わせください。</p>
           </div>
         </div>
       </section>
@@ -2768,6 +2782,17 @@ uiRoutes.get('/ui/manual', (c) => {
               </tbody>
             </table>
             <p class="text-xs text-gray-400 mt-1"><i class="fas fa-info-circle mr-1"></i>オレンジ色の金額 = 手動修正済み / 黒字 = 自動算出のまま</p>
+          </div>
+
+          <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+            <h4 class="font-bold text-indigo-800 text-sm mb-2"><i class="fas fa-calculator mr-1"></i>「計算根拠」ボタンで算出ロジックを確認</h4>
+            <p class="text-xs text-gray-600 mb-2">各工種の行にある <strong class="text-blue-600"><i class="fas fa-calculator"></i> 計算根拠</strong> ボタンをクリックすると、<strong>計算式・入力値・適用ルール</strong>を確認できます。</p>
+            <div class="bg-white rounded-lg p-3 border text-xs">
+              <p class="font-bold text-gray-700 mb-1">表示例：</p>
+              <div class="bg-blue-50 rounded p-2 font-mono text-blue-800">32坪 × ¥29,000/坪 = <strong>¥928,000</strong></div>
+              <p class="text-gray-500 mt-1">入力元: 建物条件の「坪数」→ 単価マスタの「坪単価」→ 最終金額</p>
+            </div>
+            <p class="text-xs text-indigo-600 mt-2"><i class="fas fa-lightbulb mr-1"></i>モーダル内の <strong>OK / 要修正 / ルール追加要</strong> ボタンで、その場でレビューステータスを変更できます。<a href="#calc-basis" class="underline">詳しくはセクション13</a></p>
           </div>
 
           <h3 class="font-bold text-gray-700 mt-4"><i class="fas fa-pen-to-square mr-1 text-hm-600"></i>個別の工種を修正する手順</h3>
@@ -2956,8 +2981,16 @@ uiRoutes.get('/ui/manual', (c) => {
             <p><strong>全工種の原価合計をカテゴリ別に集計</strong>した表。「自動合計」「手動調整」「最終合計」と各カテゴリの構成比（%）を確認できます。原価全体の内訳を把握するのに使います。</p>
             <p class="text-xs text-indigo-600 mt-1">上部のカードで原価合計・標準原価・太陽光原価・オプション原価の4つを一目で確認。</p>
           </div>
+          <div class="bg-teal-50 border border-teal-200 rounded-lg p-4">
+            <h3 class="font-bold text-teal-800 mb-2"><i class="fas fa-clipboard-check mr-1"></i>レビューチェック <span class="text-xs font-normal text-teal-600">(v0.12.0 新機能)</span></h3>
+            <p>全工種のレビュー進捗を<strong>カテゴリ別に一覧管理</strong>するタブ。進捗バーで確認済み/未確認/要修正/ルール追加要の割合を可視化。「全てOK」「リセット」ボタンで一括ステータス変更が可能。<a href="#review-check" class="text-teal-600 underline">詳しくはセクション12</a></p>
+          </div>
+          <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <h3 class="font-bold text-yellow-800 mb-2"><i class="fas fa-yen-sign mr-1"></i>売価・粗利</h3>
+            <p>お客様に提示する売価を登録し、粗利率・乖離分析を自動計算するタブ。概算/社内/契約/実行の4フェーズ。目標粗利率との比較でOK/注意/NGを判定。<a href="#step6" class="text-yellow-600 underline">詳しくはSTEP 6</a></p>
+          </div>
           <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
-            <h3 class="font-bold text-purple-800 mb-2"><i class="fas fa-robot mr-1"></i>AI・警告</h3>
+            <h3 class="font-bold text-purple-800 mb-2"><i class="fas fa-bell mr-1"></i>警告・確認事項</h3>
             <p>AI条件チェック結果と、システムが検出した各種警告の管理画面。未読の警告はここで「既読」「解決」「無視」に変更。帳票テキスト読取（PDF文字起こし結果の反映）もここで実行。</p>
           </div>
         </div>
@@ -2988,9 +3021,60 @@ uiRoutes.get('/ui/manual', (c) => {
         </div>
       </section>
 
+      <!-- REVIEW CHECKLIST (v0.12.0) -->
+      <section id="review-check" class="bg-white rounded-xl border-2 border-teal-400 p-6 mb-5">
+        <h2 class="text-lg font-bold text-gray-800 mb-3 flex items-center"><span class="bg-teal-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm mr-3 flex-shrink-0">12</span>レビューチェック機能 <span class="text-xs font-normal text-teal-600 ml-2">v0.12.0 新機能</span></h2>
+        <div class="text-sm text-gray-600 space-y-3">
+          <p>「<strong>レビューチェック</strong>」タブは、全工種の確認状況を<strong>カテゴリ別に俯瞰</strong>するための画面です。</p>
+          <div class="bg-teal-50 border border-teal-200 rounded-lg p-4">
+            <h3 class="font-bold text-teal-800 mb-2"><i class="fas fa-chart-bar mr-1"></i>画面構成</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+              <div class="bg-white rounded-lg p-3 border"><strong>サマリーカード</strong><br>全工種数 / 確認済 / 未確認 / 要修正 / ルール追加要 / 金額0円の件数を一目で表示</div>
+              <div class="bg-white rounded-lg p-3 border"><strong>進捗バー</strong><br>カテゴリ別に緑（OK）/ グレー（未確認）/ 黄（要修正）/ 赤（ルール追加要）の割合を可視化</div>
+              <div class="bg-white rounded-lg p-3 border"><strong>一括操作</strong><br>「<strong>全てOK</strong>」ボタンで未確認の全工種を一括で確認済みに。「<strong>リセット</strong>」で全工種を未確認に戻す</div>
+              <div class="bg-white rounded-lg p-3 border"><strong>個別操作</strong><br>各工種の行で <i class="fas fa-check text-green-600"></i>OK / <i class="fas fa-pen text-yellow-600"></i>要修正 / <i class="fas fa-flag text-red-600"></i>ルール追加要 をワンクリック切替</div>
+            </div>
+          </div>
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs">
+            <i class="fas fa-lightbulb text-blue-500 mr-1"></i><strong>使い方のコツ</strong>：管理者がレビューする際は、まずこのタブで全体の進捗を確認し、「要修正」「ルール追加要」の工種だけを重点的にチェックすると効率的です。
+          </div>
+          <div class="bg-gray-50 rounded-lg p-4 text-xs">
+            <h4 class="font-bold text-gray-700 mb-2">レビューステータスの意味</h4>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <div class="bg-gray-100 rounded p-2 text-center"><span class="text-gray-600 font-bold">未確認</span><br>まだレビューされていない</div>
+              <div class="bg-green-100 rounded p-2 text-center"><span class="text-green-700 font-bold">確認済</span><br>金額・計算に問題なし</div>
+              <div class="bg-yellow-100 rounded p-2 text-center"><span class="text-yellow-700 font-bold">要修正</span><br>金額や条件の修正が必要</div>
+              <div class="bg-red-100 rounded p-2 text-center"><span class="text-red-700 font-bold">ルール追加要</span><br>計算ルールの追加・修正が必要</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CALCULATION BASIS MODAL (v0.12.0) -->
+      <section id="calc-basis" class="bg-white rounded-xl border-2 border-indigo-400 p-6 mb-5">
+        <h2 class="text-lg font-bold text-gray-800 mb-3 flex items-center"><span class="bg-indigo-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm mr-3 flex-shrink-0">13</span>計算根拠モーダルの見方 <span class="text-xs font-normal text-indigo-600 ml-2">v0.12.0 強化</span></h2>
+        <div class="text-sm text-gray-600 space-y-3">
+          <p>工種明細の各行にある <strong class="text-blue-600"><i class="fas fa-calculator"></i> 計算根拠</strong> ボタンを押すと、その工種がどのように算出されたかの詳細が表示されます。</p>
+          <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+            <h3 class="font-bold text-indigo-800 mb-2"><i class="fas fa-square-root-variable mr-1"></i>表示される情報</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+              <div class="bg-white rounded-lg p-3 border"><strong>計算式</strong><br>例: <span class="font-mono bg-blue-50 px-1 rounded">32坪 × ¥29,000/坪 = ¥928,000</span><br>入力値 × 単価 = 最終金額の形式で表示</div>
+              <div class="bg-white rounded-lg p-3 border"><strong>入力値の出所</strong><br>「坪数」→ 建物条件から取得<br>「単価」→ 単価マスタから取得、など入力元を明示</div>
+              <div class="bg-white rounded-lg p-3 border"><strong>計算タイプ</strong><br>坪単価/面積単価/固定額/パネル容量/配管距離 等の10種類をバッジで表示</div>
+              <div class="bg-white rounded-lg p-3 border"><strong>適用ルール</strong><br>条件マッチしたルール一覧と優先度を表示。ルールグループ（選択/計算/警告/横断）も色分け</div>
+              <div class="bg-white rounded-lg p-3 border"><strong>手修正情報</strong><br>手動変更があれば自動値との差分、変更理由、業者名を表示</div>
+              <div class="bg-white rounded-lg p-3 border"><strong>クイックレビュー</strong><br>モーダル内で直接 OK/要修正/ルール追加要 のステータス変更が可能</div>
+            </div>
+          </div>
+          <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-xs">
+            <i class="fas fa-lightbulb text-yellow-500 mr-1"></i><strong>活用場面</strong>：自動算出された金額の妥当性を確認する際に使います。計算式が期待と違う場合は「ルール追加要」にマークし、管理者が計算ルールを調整してください。
+          </div>
+        </div>
+      </section>
+
       <!-- FAQ -->
       <section id="faq" class="bg-white rounded-xl border p-6 mb-5">
-        <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center"><span class="bg-hm-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm mr-3 flex-shrink-0">12</span>よくある質問（FAQ）</h2>
+        <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center"><span class="bg-hm-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm mr-3 flex-shrink-0">14</span>よくある質問（FAQ）</h2>
         <div class="space-y-4 text-sm">
           <div class="border-b pb-3"><h3 class="font-bold text-gray-800"><i class="fas fa-question-circle text-hm-500 mr-1"></i>Q. 元シートのように各工種を1つずつ見積もりたい</h3><p class="text-gray-600 mt-1"><strong>A.</strong> 「工種明細」タブで検索ボックスに工種名を入力 → 編集アイコンをクリック → 数量・単価・金額を変更。<a href="#step4" class="text-hm-600 underline">詳しくはSTEP 4</a></p></div>
           <div class="border-b pb-3"><h3 class="font-bold text-gray-800"><i class="fas fa-question-circle text-hm-500 mr-1"></i>Q. 業者からの見積書を反映したい</h3><p class="text-gray-600 mt-1"><strong>A.</strong> 「工種明細」で該当工種を開き、「手修正 金額」に業者見積額を入力。変更理由で「業者見積」を選択して保存。</p></div>
@@ -3002,13 +3086,16 @@ uiRoutes.get('/ui/manual', (c) => {
           <div class="border-b pb-3"><h3 class="font-bold text-gray-800"><i class="fas fa-question-circle text-hm-500 mr-1"></i>Q. 単価のデフォルト値を変えたい</h3><p class="text-gray-600 mt-1"><strong>A.</strong> ナビの「管理」→「単価マスタ」タブで変更可能です（admin権限が必要）。<a href="#master" class="text-hm-600 underline">詳しくはセクション11</a></p></div>
           <div class="border-b pb-3"><h3 class="font-bold text-gray-800"><i class="fas fa-question-circle text-hm-500 mr-1"></i>Q. 案件のステータスがよくわからない</h3><p class="text-gray-600 mt-1"><strong>A.</strong> 下書き→進行中→要レビュー→レビュー済の順に進みます。「案件情報」タブで手動変更可能。<a href="#statuses" class="text-hm-600 underline">詳しくはセクション9</a></p></div>
           <div class="border-b pb-3"><h3 class="font-bold text-gray-800"><i class="fas fa-question-circle text-hm-500 mr-1"></i>Q. 「差分解決」って何？</h3><p class="text-gray-600 mt-1"><strong>A.</strong> 仕様変更後の「再計算」で生じた金額変動のこと。新値を採用するか、旧値を維持するか選べます。<a href="#tabs" class="text-hm-600 underline">詳しくはセクション10</a></p></div>
-          <div><h3 class="font-bold text-gray-800"><i class="fas fa-question-circle text-hm-500 mr-1"></i>Q. 他の人の案件が見えない</h3><p class="text-gray-600 mt-1"><strong>A.</strong> estimator権限のユーザーは自分が作成した案件のみ表示されます。全案件を見るにはmanager以上の権限が必要です。管理者にお問い合わせください。</p></div>
+          <div class="border-b pb-3"><h3 class="font-bold text-gray-800"><i class="fas fa-question-circle text-hm-500 mr-1"></i>Q. 他の人の案件が見えない</h3><p class="text-gray-600 mt-1"><strong>A.</strong> estimator権限のユーザーは自分が作成した案件のみ表示されます。全案件を見るにはmanager以上の権限が必要です。管理者にお問い合わせください。</p></div>
+          <div class="border-b pb-3"><h3 class="font-bold text-gray-800"><i class="fas fa-question-circle text-hm-500 mr-1"></i>Q. パスワードを忘れた</h3><p class="text-gray-600 mt-1"><strong>A.</strong> ログイン画面の「パスワードを忘れた方」→ メールアドレス入力 → 6桁コードがメールで届く → コードと新パスワードを入力。<a href="#login" class="text-hm-600 underline">詳しくはセクション0</a></p></div>
+          <div class="border-b pb-3"><h3 class="font-bold text-gray-800"><i class="fas fa-question-circle text-hm-500 mr-1"></i>Q. 「レビューチェック」タブの使い方は？</h3><p class="text-gray-600 mt-1"><strong>A.</strong> 全工種のレビュー進捗をカテゴリ別に一覧で確認できます。「全てOK」で一括確認、個別にOK/要修正/ルール追加要をワンクリックで切替。<a href="#review-check" class="text-hm-600 underline">詳しくはセクション12</a></p></div>
+          <div><h3 class="font-bold text-gray-800"><i class="fas fa-question-circle text-hm-500 mr-1"></i>Q. 「計算根拠」で表示される計算式が違う</h3><p class="text-gray-600 mt-1"><strong>A.</strong> 計算式は建物条件と単価マスタのルールに基づいて自動生成されます。式が実態と異なる場合は「ルール追加要」にマークし、管理者が計算ルールを調整してください。<a href="#calc-basis" class="text-hm-600 underline">詳しくはセクション13</a></p></div>
         </div>
       </section>
 
       <!-- Terms -->
       <section id="terms" class="bg-white rounded-xl border p-6 mb-8">
-        <h2 class="text-lg font-bold text-gray-800 mb-3 flex items-center"><span class="bg-hm-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm mr-3 flex-shrink-0">13</span>用語集</h2>
+        <h2 class="text-lg font-bold text-gray-800 mb-3 flex items-center"><span class="bg-hm-600 text-white w-8 h-8 rounded-full flex items-center justify-center text-sm mr-3 flex-shrink-0">15</span>用語集</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
           <div class="bg-gray-50 rounded-lg p-3"><strong>スナップショット</strong><br><span class="text-gray-500">ある時点の原価計算結果のコピー。再計算のたびに新しいスナップショットが作られます。</span></div>
           <div class="bg-gray-50 rounded-lg p-3"><strong>工種</strong><br><span class="text-gray-500">建築の各作業区分（基礎工事、上棟費等）。現在58工種がマスタ登録済み。</span></div>
