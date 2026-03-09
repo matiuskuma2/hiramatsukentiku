@@ -39,8 +39,8 @@ app.get('/api/health', (c) => {
   return c.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    version: '0.9.0',
-    phase: 'step-9-admin-auth-manual',
+    version: '0.11.0',
+    phase: 'p2-ux-improvement-deployed',
   });
 });
 

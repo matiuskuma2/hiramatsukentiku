@@ -86,7 +86,7 @@ function layout(title: string, bodyContent: string, activeTab: string = '') {
             <button x-show="user" @click="logout()" class="text-xs text-gray-400 hover:text-red-500 transition" title="ログアウト"><i class="fas fa-sign-out-alt"></i></button>
             <a x-show="!user" href="/ui/login" class="text-xs text-hm-600 hover:text-hm-800 font-medium"><i class="fas fa-sign-in-alt mr-1"></i>ログイン</a>
           </div>
-          <span class="text-xs text-gray-400">v0.9.0</span>
+          <span class="text-xs text-gray-400">v0.11.0</span>
         </div>
       </div>
     </div>
@@ -1377,7 +1377,7 @@ uiRoutes.get('/ui/login', (c) => {
         <i class="fas fa-info-circle mr-1"></i><strong>初回ログイン</strong>：管理者から通知されたメールアドレスで、任意のパスワード（4文字以上）を設定してください。そのパスワードが今後のログインに使われます。
       </div>
     </div>
-    <div class="mt-6 pt-4 border-t text-center text-xs text-gray-400">v0.9.0 | <a href="/ui/manual" class="text-hm-600 hover:underline">使い方ガイド</a></div>
+    <div class="mt-6 pt-4 border-t text-center text-xs text-gray-400">v0.11.0 | <a href="/ui/manual" class="text-hm-600 hover:underline">使い方ガイド</a></div>
   </div>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <script>
