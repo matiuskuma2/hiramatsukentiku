@@ -2,20 +2,39 @@
 
 ## Project Overview
 - **Name**: hiramatsu-cost
-- **Version**: 0.10.0
+- **Version**: 0.11.0
 - **Goal**: 平松建築の注文住宅 概算原価を自動算出し、売価ギャップ分析・リスク可視化を行う原価管理システム
-- **Phase**: Step 10 完了 (ラインナップマスタ管理・単価マスタ入力改善)
+- **Phase**: P1+P2 UI/UX改善完了 → Cloudflare Pages本番デプロイ済み
 - **Stack**: Hono + TypeScript + Cloudflare D1 + TailwindCSS + Alpine.js
 
 ## URLs
+- **Production**: https://hiramatsu-cost-8ly.pages.dev
 - **Sandbox**: https://3000-ir9zs5r25rb1al74y1qzm-3844e1b6.sandbox.novita.ai
 - **UI Pages**:
-  - `/ui/login` — ログイン画面
-  - `/ui/projects` — 案件一覧
-  - `/ui/projects/:id` — 案件詳細 (8タブ)
-  - `/ui/admin` — 管理画面 (admin/managerのみ, 4タブ: ユーザー・単価マスタ・ラインナップ・システム設定)
-  - `/ui/manual` — 使い方ガイド (13セクション)
+  - `/ui/login` -- ログイン画面
+  - `/ui/projects` -- 案件一覧
+  - `/ui/projects/:id` -- 案件詳細 (7タブ)
+  - `/ui/admin` -- 管理画面 (admin/managerのみ, 4タブ: ユーザー・単価マスタ・ラインナップ・システム設定)
+  - `/ui/manual` -- 使い方ガイド (13セクション)
 - **API Health**: `/api/health`
+
+## P1+P2 UI/UX改善 (Latest)
+
+### P1: 画面の明確化・ガイド強化
+- **タブ名変更＋業務導線順に並び替え**: 建物条件 → 工種別原価 → 原価集計 → 売価・粗利 → リスクセンター → 再計算差分 → 警告・確認事項
+- **全7タブにガイドバナー追加**: 「この画面でやること」を常時表示
+- **計算未実行時の空画面改善**: ステップガイド付き（建物情報入力→初期計算→確認の流れ）
+- **リスクセンター再構成**: 3段階分類（🔴エラー/🟡警告/🔵情報）＋「やることTOP3」セクション
+- **売価・粗利の概念図追加**: 原価（コスト）→ 売価（提示価格）→ 粗利（差額）の図解
+- **案件一覧の空画面改善**: 4ステップワークフローガイド付き
+- **HTML構造修正**: items/editタブのネスト問題修正
+
+### P2: 業務運用の確信度向上
+- **計算根拠モーダル**: 各工種の「計算根拠を見る」ボタン → 計算タイプ・自動値・手動調整・最終値・適用ルール・選定理由を一覧表示
+- **原価集計の見やすさ強化**: カテゴリコード→日本語名変換、TOP3カテゴリカード日本語化
+- **警告・確認事項のグループ化**: タイプ別（入力不足/条件未達/閾値超過/手動確認等）にグループ分け、重要度アイコン・件数バッジ付き
+- **帳票読取の名称・説明見直し**: 「AI条件チェック」→「条件チェック（ルール+AI）」、AI接続状態の説明改善
+- **建物条件の入力補助強化**: 入力内容と原価への影響を説明するパネル追加
 
 ## 完了済みステップ
 
@@ -31,98 +50,15 @@
 | Step 6 | AI Production Hardening: graceful degradation, confidence/severity rules, warning CRUD, PDF UI | ✅ |
 | Step 7 | OpenAI API Key Integration + M7 統合テスト (AI ai_enhanced モード確認) | ✅ |
 | Step 8 | CR-03修正 (settings PATCH) + CR-05実装 (project edit tab) + デプロイ準備文書 + M8 E2E | ✅ |
-| **Step 9** | **管理画面・認証・使い方ガイド・権限制御** | ✅ |
-| **Step 10** | **ラインナップマスタ管理・単価マスタ入力改善** | ✅ **NEW** |
-
-## Step 9 で実装した内容
-
-### 1. 認証・ログイン機能
-- Cookie ベースのセッション管理 (`/api/auth/login`, `/api/auth/logout`, `/api/auth/me`)
-- SHA-256 パスワードハッシュ (Cloudflare Workers 対応)
-- 初回ログイン時にパスワード自動設定
-- パスワード変更 (`/api/auth/change-password`)
-- ログイン画面 (`/ui/login`)
-
-### 2. 管理画面 (`/ui/admin`)
-- **ユーザー管理タブ**: ユーザー追加・編集・無効化 (admin 権限のみ)
-- **単価マスタタブ**: デフォルト単価の確認・変更 (admin 権限のみ)
-  - カテゴリフィルタ・検索・鉛筆アイコンで個別編集
-- **システム設定タブ**: 粗利率閾値・デフォルト値の変更
-
-### 3. 権限制御 (4ロール)
-| 権限 | 案件閲覧 | 案件作成・編集 | レビュー | ユーザー管理 | マスタ変更 |
-|------|---------|-------------|---------|------------|---------|
-| admin | 全案件 | ✅ | ✅ | ✅ | ✅ |
-| manager | 全案件 | ✅ | ✅ | 一覧のみ | ❌ |
-| estimator | 自分のみ | ✅ | ❌ | ❌ | ❌ |
-| viewer | 自分のみ | ❌ | ❌ | ❌ | ❌ |
-
-### 4. 案件情報タブ (入力フォーム)
-6つのセクションで建物情報をフル編集可能:
-- **基本情報**: 案件名, 顧客名, ラインナップ, ステータス, 断熱等級, 防火区分, 屋根形状, WB工法, 平屋, 二世帯
-- **面積・寸法**: 坪数, 建築面積, 延床面積, 1F/2F面積, 屋根/外壁/内壁/天井面積, 基礎周長, 屋根周長, ポーチ面積
-- **所在地**: 都道府県, 市区町村, 自治体コード, 住所テキスト
-- **太陽光・オプション**: PV有無/容量/パネル数, 蓄電池有無/容量, ドーマー, ロフト, 焼杉
-- **設備・インフラ**: 上水道引込, 下水道引込, メーター, 配管距離, 雨樋/竪樋延長
-- **粗利率設定**: 標準/太陽光/オプション粗利率
-
-### 5. 使い方ガイド (`/ui/manual`)
-13セクション構成の完全マニュアル:
-0. ログインとユーザー管理
-1. 案件を作成する
-2. 建物情報を入力する（案件情報タブ）
-3. 初期計算を実行する
-4. 個別の工種見積を修正する（工種明細タブ）
-5. 原価サマリを確認する
-6. 売価見積もりとは（売価の意味と使い方）
-7. リスクセンターで全体確認
-8. 仕様変更時の再計算と差分解決
-9. ステータスの意味と遷移
-10. 各タブの詳細ガイド
-11. 単価マスタの変更方法
-12. よくある質問（FAQ）— 11問
-13. 用語集
-
-### 6. ナビバー改善
-- 「管理」リンクは admin/manager のみ表示
-- 案件一覧に担当者名を表示
-
-## Step 10 で実装した内容
-
-### 1. ラインナップマスタ管理
-- **lineups マスタテーブル**: code, name, short_name, description, is_custom, sort_order, is_active
-- **初期データ**: SHIN, RIN, MOKU_OOYANE, MOKU_HIRAYA, MOKU_ROKU, CUSTOM（オーダーメイド）
-- **管理画面**: ラインナップ管理タブ追加（一覧・追加・編集・有効化/無効化）
-- **API**: GET /api/master/lineups, POST/PATCH /api/master/lineups/:code
-
-### 2. 未定（null）とオーダーメイド（CUSTOM）の導入
-- **未定 (null)**: 案件作成時のデフォルト。ラインナップ依存の工種は自動計算されず、手動入力にフォールバック
-- **オーダーメイド (CUSTOM)**: 既製シリーズに当てはまらない自由設計案件。全ラインナップ依存工種が手動確認必要
-- **projects.lineup**: NOT NULL → nullable に変更
-
-### 3. リスクセンター警告の強化
-- `lineup_undecided`: ラインナップ未定時の警告（severity: warning）
-- `lineup_custom`: オーダーメイド案件のインフォメーション（severity: info）
-- `lineup_dependent_manual_items`: ラインナップ依存工種の手動入力待ち件数
-
-### 4. 原価計算エンジンの改善
-- lineup=null/CUSTOM時、ラインナップ固定（lineup_fixed）やルール参照（rule_lookup）の工種に手動入力警告を自動付与
-- 既存5ラインナップの計算ロジックに影響なし
-
-### 5. UI改善
-- **案件作成モーダル**: 動的ラインナップドロップダウン（APIから取得）、未定/CUSTOM選択時の注意メッセージ
-- **案件情報タブ**: 動的ドロップダウン + 未定/CUSTOM時の視覚的警告
-- **案件一覧**: ラインナップ名を日本語で表示、未定案件にバッジ表示
-- **使い方ガイド**: ラインナップの説明を更新（未定・オーダーメイドの説明追加）
-
-### 6. 単価マスタの入力改善（Step 9補完）
-- 新規工種追加機能の実装（POST /api/master/items）
-- 編集モーダルのフォーム修正（null値処理改善）
-- カテゴリ名の日本語表示
+| Step 9 | 管理画面・認証・使い方ガイド・権限制御 | ✅ |
+| Step 10 | ラインナップマスタ管理・単価マスタ入力改善 | ✅ |
+| **P1** | **UI/UX改善: 画面の明確化・ガイド強化** | ✅ **NEW** |
+| **P2** | **UI/UX改善: 業務運用の確信度向上** | ✅ **NEW** |
+| **Deploy** | **Cloudflare Pages 本番デプロイ** | ✅ **NEW** |
 
 ## API一覧
 
-### 認証 (NEW)
+### 認証
 | Method | Path | 説明 |
 |--------|------|------|
 | POST | `/api/auth/login` | ログイン (email + password) |
@@ -130,7 +66,7 @@
 | GET | `/api/auth/me` | 現在ユーザー情報 |
 | POST | `/api/auth/change-password` | パスワード変更 |
 
-### 管理 (NEW)
+### 管理
 | Method | Path | 説明 | 権限 |
 |--------|------|------|------|
 | GET | `/api/admin/users` | ユーザー一覧 | admin, manager |
@@ -154,6 +90,8 @@
 | GET | `/api/master/lineups` | ラインナップ一覧 (?active_only) |
 | POST | `/api/master/lineups` | ラインナップ追加 (admin) |
 | PATCH | `/api/master/lineups/:code` | ラインナップ更新 (admin) |
+| GET | `/api/master/rules` | ルール一覧 (?item_id, ?rule_group) |
+| GET | `/api/master/rules/:id` | ルール詳細 |
 | GET | `/api/master/system-settings` | システム設定一覧 |
 | PATCH | `/api/master/system-settings/:key` | システム設定更新 |
 
@@ -192,18 +130,18 @@
 | POST | `/api/ai/check-conditions` | 条件チェック |
 | GET | `/api/ai/warnings/:projectId` | 警告一覧 |
 
-## UI タブ構成 (案件詳細)
-1. **リスクセンター** — 入力充足率・リスクスコア・アクション要否
-2. **案件情報** — 建物情報の入力・編集 (6セクション, 自動保存)
-3. **工種明細** — 58工種の自動算出結果と手動上書きモーダル
-4. **差分解決** — 再計算時の変更点確認と承認 (4アクション)
-5. **原価サマリ** — カテゴリ別集計・総額
-6. **売価見積** — 売価入力 + ギャップ分析ビジュアライゼーション
-7. **AI・警告** — AIステータス・条件チェック・警告CRUD・PDF読取
+## UI タブ構成 (案件詳細) - P1/P2改善後
+1. **建物条件** -- 建物情報の入力・編集 (6セクション, 自動保存, 入力補助パネル付き)
+2. **工種別原価** -- 58工種の自動算出結果と手動上書き + 計算根拠モーダル
+3. **原価集計** -- カテゴリ別集計・総額 (日本語カテゴリ名, TOP3カード)
+4. **売価・粗利** -- 売価入力 + ギャップ分析 (概念図付き)
+5. **リスクセンター** -- 3段階分類 + やることTOP3
+6. **再計算差分** -- 再計算時の変更点確認と承認 (4アクション)
+7. **警告・確認事項** -- タイプ別グループ化 + 条件チェック
 
 ## Data Architecture
-- **Database**: Cloudflare D1 (SQLite) — 24テーブル
-- **Migrations**: 7ファイル (0001〜0007)
+- **Database**: Cloudflare D1 (SQLite) -- 24テーブル
+- **Migrations**: 7ファイル (0001--0007)
 - **Seed**: 10カテゴリ / 58工種 / 47ルール / 9システム設定 / 6ラインナップ
 - **Auth**: Cookie session + CF Access + dev email bypass
 - **Enums**: 37 Zod enum definitions
@@ -222,7 +160,7 @@ src/
 ├── services/
 │   └── queueService.ts         # Queue + sync fallback
 └── routes/
-    ├── admin.ts                # Auth + User CRUD API (NEW)
+    ├── admin.ts                # Auth + User CRUD API
     ├── master.ts               # Master data API
     ├── projects.ts             # Project CRUD + access control
     ├── snapshots.ts            # Snapshot + Diffs API
@@ -230,27 +168,37 @@ src/
     ├── salesEstimates.ts       # Sales estimate + gap
     ├── riskCentre.ts           # Risk centre aggregation
     ├── ai.ts                   # AI Phase 1
-    └── ui.ts                   # Frontend UI (Alpine.js)
+    └── ui.ts                   # Frontend UI (Alpine.js) - P1/P2改善済み
 migrations/
 ├── 0001_initial_schema.sql
 ├── 0002_cr01_cr02_tables_and_columns.sql
 ├── 0003_warnings_source_status.sql
 ├── 0004_diff_resolution_columns.sql
 ├── 0005_ai_warnings_read_status.sql
-└── 0006_auth_and_admin.sql
-└── 0007_lineups_master_and_nullable_project_lineup.sql  # NEW
+├── 0006_auth_and_admin.sql
+└── 0007_lineups_master_and_nullable_project_lineup.sql
 ```
 
 ## Deployment
-- **Platform**: Cloudflare Pages (local dev with wrangler)
-- **Status**: ✅ Active (Sandbox)
+- **Platform**: Cloudflare Pages
+- **Production URL**: https://hiramatsu-cost-8ly.pages.dev
+- **D1 Database**: hiramatsu-cost-production (a3d11cee-6bbd-4271-8b96-6dbf0e1fec03)
+- **Status**: ✅ Active (Production + Sandbox)
 - **Last Updated**: 2026-03-09
-- **Version**: 0.10.0
+- **Version**: 0.11.0
+
+## 使い方（初期セットアップ）
+1. https://hiramatsu-cost-8ly.pages.dev/ui/projects にアクセス
+2. ログイン（初回はSeedデータのadminユーザーでログイン）
+3. 「案件を作成」ボタンで新規案件を作成
+4. 建物条件タブで建物情報を入力
+5. 「初期計算」ボタンで原価を自動算出
+6. 各タブで結果を確認・修正
 
 ## Next Steps
-- [ ] Cloudflare Pages 本番デプロイ実行
 - [ ] AI Phase 2: GPT-4o直接接続強化
 - [ ] lineup_packages / lineup_option_groups テーブルの活用（Phase 2 予約）
 - [ ] CR-06: バッチレビュー
 - [ ] CR-07: CSVエクスポート
-- [ ] Cloudflare Access 認証設定
+- [ ] Cloudflare Access 認証設定（本番セキュリティ強化）
+- [ ] 実案件での微調整・フィードバック反映
