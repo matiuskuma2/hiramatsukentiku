@@ -182,26 +182,40 @@ masterRoutes.get('/rules', async (c) => {
   const db = c.env.DB;
   const itemId = c.req.query('item_id');
   const ruleGroup = c.req.query('rule_group');
+  const lineup = c.req.query('lineup'); // filter by lineup in conditions_json
+  const search = c.req.query('search');
 
   let sql = `
-    SELECT id, master_item_id, rule_group, rule_name, priority,
-           conditions_json, actions_json, is_active,
-           valid_from, valid_to, created_at
-    FROM cost_rule_conditions
+    SELECT r.id, r.master_item_id, r.rule_group, r.rule_name, r.priority,
+           r.conditions_json, r.actions_json, r.is_active,
+           r.valid_from, r.valid_to, r.created_at,
+           m.item_name, m.category_code
+    FROM cost_rule_conditions r
+    LEFT JOIN cost_master_items m ON r.master_item_id = m.id
     WHERE 1=1
   `;
   const binds: any[] = [];
 
   if (itemId) {
-    sql += ' AND master_item_id = ?';
+    sql += ' AND r.master_item_id = ?';
     binds.push(itemId);
   }
   if (ruleGroup) {
-    sql += ' AND rule_group = ?';
+    sql += ' AND r.rule_group = ?';
     binds.push(ruleGroup);
   }
+  if (lineup) {
+    // Filter rules whose conditions_json contains this lineup value
+    sql += " AND r.conditions_json LIKE ?";
+    binds.push(`%"${lineup}"%`);
+  }
+  if (search) {
+    sql += ' AND (r.rule_name LIKE ? OR r.id LIKE ? OR m.item_name LIKE ?)';
+    const term = `%${search}%`;
+    binds.push(term, term, term);
+  }
 
-  sql += ' ORDER BY priority ASC, created_at ASC';
+  sql += ' ORDER BY m.category_code, r.master_item_id, r.rule_group, r.priority ASC';
 
   const stmt = binds.length > 0
     ? db.prepare(sql).bind(...binds)
@@ -509,6 +523,186 @@ masterRoutes.patch('/lineups/:code', requireRole('admin'), async (c) => {
   await db.prepare(`UPDATE lineups SET ${sets.join(', ')} WHERE code = ?`).bind(...vals).run();
   const updated = await db.prepare('SELECT * FROM lineups WHERE code = ?').bind(code).first();
   return c.json({ success: true, data: updated, message: 'ラインナップを更新しました' });
+});
+
+// ==================================================
+// Rule CRUD (cost_rule_conditions)
+// ==================================================
+
+// --------------------------------------------------
+// GET /api/master/rules (enhanced with item name + filter)
+// 権限: all (ログイン済み)
+// Query: ?item_id=xxx&rule_group=selection&lineup=SHIN&search=大工
+// --------------------------------------------------
+// (already defined above at line ~181)
+
+// --------------------------------------------------
+// GET /api/master/rules/:id
+// 権限: all
+// --------------------------------------------------
+masterRoutes.get('/rules/:id', async (c) => {
+  const db = c.env.DB;
+  const id = c.req.param('id');
+  const rule = await db.prepare(`
+    SELECT r.*, m.item_name, m.category_code
+    FROM cost_rule_conditions r
+    LEFT JOIN cost_master_items m ON r.master_item_id = m.id
+    WHERE r.id = ?
+  `).bind(id).first();
+  if (!rule) return c.json({ success: false, error: `Rule not found: ${id}` }, 404);
+  return c.json({ success: true, data: rule } satisfies ApiResponse);
+});
+
+// --------------------------------------------------
+// POST /api/master/rules (admin only)
+// --------------------------------------------------
+masterRoutes.post('/rules', requireRole('admin'), async (c) => {
+  const db = c.env.DB;
+  const user = c.get('currentUser')!;
+  let body: any;
+  try { body = await c.req.json(); } catch { return c.json({ success: false, error: 'Invalid JSON body' }, 400); }
+
+  // Validate required fields
+  if (!body.master_item_id) return c.json({ success: false, error: 'master_item_id は必須です' }, 400);
+  if (!body.rule_group) return c.json({ success: false, error: 'rule_group は必須です' }, 400);
+
+  const validGroups = ['selection', 'calculation', 'warning', 'cross_category'];
+  if (!validGroups.includes(body.rule_group)) return c.json({ success: false, error: `rule_group は ${validGroups.join(', ')} のいずれかです` }, 400);
+
+  // Verify item exists
+  const item = await db.prepare('SELECT id FROM cost_master_items WHERE id = ?').bind(body.master_item_id).first();
+  if (!item) return c.json({ success: false, error: `工種が見つかりません: ${body.master_item_id}` }, 404);
+
+  // Validate JSON arrays
+  let conditionsJson: string;
+  let actionsJson: string;
+  try {
+    const conds = Array.isArray(body.conditions) ? body.conditions : [];
+    conditionsJson = JSON.stringify(conds);
+  } catch { return c.json({ success: false, error: 'conditions の形式が正しくありません' }, 400); }
+  try {
+    const acts = Array.isArray(body.actions) ? body.actions : [];
+    if (acts.length === 0) return c.json({ success: false, error: 'アクションを1つ以上設定してください' }, 400);
+    actionsJson = JSON.stringify(acts);
+  } catch { return c.json({ success: false, error: 'actions の形式が正しくありません' }, 400); }
+
+  // Generate rule ID
+  const ruleId = body.id || `rule_${body.master_item_id.replace('item_', '')}_${Date.now()}`;
+
+  // Check duplicate
+  const existing = await db.prepare('SELECT id FROM cost_rule_conditions WHERE id = ?').bind(ruleId).first();
+  if (existing) return c.json({ success: false, error: `ルールID '${ruleId}' は既に存在します` }, 409);
+
+  await db.prepare(`
+    INSERT INTO cost_rule_conditions (id, master_item_id, rule_group, rule_name, priority, conditions_json, actions_json, is_active, valid_from, valid_to, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, datetime('now'))
+  `).bind(
+    ruleId, body.master_item_id, body.rule_group, body.rule_name || ruleId,
+    body.priority ?? 100, conditionsJson, actionsJson,
+    body.valid_from || null, body.valid_to || null
+  ).run();
+
+  // Audit log
+  try {
+    await db.prepare(`
+      INSERT INTO master_change_logs (target_table, target_id, change_type, field_name, before_value, after_value, reason, changed_by, changed_at)
+      VALUES ('cost_rule_conditions', ?, 'create', 'all', '{}', ?, '管理画面からルール追加', ?, datetime('now'))
+    `).bind(ruleId, JSON.stringify({ conditions: body.conditions, actions: body.actions }), user.id).run();
+  } catch {}
+
+  const created = await db.prepare(`
+    SELECT r.*, m.item_name, m.category_code
+    FROM cost_rule_conditions r LEFT JOIN cost_master_items m ON r.master_item_id = m.id
+    WHERE r.id = ?
+  `).bind(ruleId).first();
+  return c.json({ success: true, data: created, message: 'ルールを追加しました' }, 201);
+});
+
+// --------------------------------------------------
+// PATCH /api/master/rules/:id (admin only)
+// --------------------------------------------------
+masterRoutes.patch('/rules/:id', requireRole('admin'), async (c) => {
+  const db = c.env.DB;
+  const user = c.get('currentUser')!;
+  const id = c.req.param('id');
+
+  let body: any;
+  try { body = await c.req.json(); } catch { return c.json({ success: false, error: 'Invalid JSON body' }, 400); }
+
+  const existing = await db.prepare('SELECT * FROM cost_rule_conditions WHERE id = ?').bind(id).first() as any;
+  if (!existing) return c.json({ success: false, error: `ルールが見つかりません: ${id}` }, 404);
+
+  const sets: string[] = [];
+  const vals: any[] = [];
+  const changes: Record<string, any> = {};
+
+  if (body.rule_group !== undefined) {
+    const validGroups = ['selection', 'calculation', 'warning', 'cross_category'];
+    if (!validGroups.includes(body.rule_group)) return c.json({ success: false, error: `rule_group は ${validGroups.join(', ')} のいずれかです` }, 400);
+    sets.push('rule_group = ?'); vals.push(body.rule_group);
+    changes.rule_group = { old: existing.rule_group, new: body.rule_group };
+  }
+  if (body.rule_name !== undefined) { sets.push('rule_name = ?'); vals.push(body.rule_name); }
+  if (body.priority !== undefined) { sets.push('priority = ?'); vals.push(body.priority); changes.priority = { old: existing.priority, new: body.priority }; }
+  if (body.conditions !== undefined) {
+    const condStr = JSON.stringify(Array.isArray(body.conditions) ? body.conditions : []);
+    sets.push('conditions_json = ?'); vals.push(condStr);
+    changes.conditions_json = { old: existing.conditions_json, new: condStr };
+  }
+  if (body.actions !== undefined) {
+    const actStr = JSON.stringify(Array.isArray(body.actions) ? body.actions : []);
+    sets.push('actions_json = ?'); vals.push(actStr);
+    changes.actions_json = { old: existing.actions_json, new: actStr };
+  }
+  if (body.is_active !== undefined) { sets.push('is_active = ?'); vals.push(body.is_active ? 1 : 0); changes.is_active = { old: existing.is_active, new: body.is_active ? 1 : 0 }; }
+  if (body.valid_from !== undefined) { sets.push('valid_from = ?'); vals.push(body.valid_from || null); }
+  if (body.valid_to !== undefined) { sets.push('valid_to = ?'); vals.push(body.valid_to || null); }
+
+  if (sets.length === 0) return c.json({ success: false, error: '変更がありません' }, 400);
+
+  vals.push(id);
+  await db.prepare(`UPDATE cost_rule_conditions SET ${sets.join(', ')} WHERE id = ?`).bind(...vals).run();
+
+  // Audit log
+  if (Object.keys(changes).length > 0) {
+    try {
+      await db.prepare(`
+        INSERT INTO master_change_logs (target_table, target_id, change_type, field_name, before_value, after_value, reason, changed_by, changed_at)
+        VALUES ('cost_rule_conditions', ?, 'update', ?, ?, ?, '管理画面からルール更新', ?, datetime('now'))
+      `).bind(id, Object.keys(changes).join(','), JSON.stringify(changes), JSON.stringify(body), user.id).run();
+    } catch {}
+  }
+
+  const updated = await db.prepare(`
+    SELECT r.*, m.item_name, m.category_code
+    FROM cost_rule_conditions r LEFT JOIN cost_master_items m ON r.master_item_id = m.id
+    WHERE r.id = ?
+  `).bind(id).first();
+  return c.json({ success: true, data: updated, message: 'ルールを更新しました' });
+});
+
+// --------------------------------------------------
+// DELETE /api/master/rules/:id (admin only)
+// --------------------------------------------------
+masterRoutes.delete('/rules/:id', requireRole('admin'), async (c) => {
+  const db = c.env.DB;
+  const user = c.get('currentUser')!;
+  const id = c.req.param('id');
+
+  const existing = await db.prepare('SELECT * FROM cost_rule_conditions WHERE id = ?').bind(id).first();
+  if (!existing) return c.json({ success: false, error: `ルールが見つかりません: ${id}` }, 404);
+
+  await db.prepare('DELETE FROM cost_rule_conditions WHERE id = ?').bind(id).run();
+
+  // Audit log
+  try {
+    await db.prepare(`
+      INSERT INTO master_change_logs (target_table, target_id, change_type, field_name, before_value, after_value, reason, changed_by, changed_at)
+      VALUES ('cost_rule_conditions', ?, 'delete', 'all', ?, '{}', '管理画面からルール削除', ?, datetime('now'))
+    `).bind(id, JSON.stringify(existing), user.id).run();
+  } catch {}
+
+  return c.json({ success: true, message: 'ルールを削除しました' });
 });
 
 export default masterRoutes;

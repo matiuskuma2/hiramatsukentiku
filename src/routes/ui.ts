@@ -1304,6 +1304,86 @@ uiRoutes.get('/ui/admin', (c) => {
             <li><strong>オーダーメイド (CUSTOM)</strong>: 既製シリーズに当てはまらない自由設計案件。全ラインナップ依存工種は手動入力。</li>
           </ul>
         </div>
+
+        <!-- ============================================ -->
+        <!-- Rule Management Section -->
+        <!-- ============================================ -->
+        <div class="mt-8 pt-6 border-t-2 border-gray-200">
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+            <div>
+              <h3 class="text-lg font-bold text-gray-800"><i class="fas fa-project-diagram mr-1.5 text-hm-600"></i>ルール管理（自動計算条件）</h3>
+              <p class="text-xs text-gray-500 mt-0.5">ラインナップや坪数に応じた工種の選択・金額設定・警告ルールを管理します。全 <span x-text="rules.length" class="font-bold text-hm-600"></span> 件</p>
+            </div>
+            <button @click="openRuleCreate()" class="bg-hm-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-hm-700 transition shadow-sm whitespace-nowrap"><i class="fas fa-plus mr-1"></i>ルール追加</button>
+          </div>
+
+          <!-- Filters -->
+          <div class="flex flex-wrap gap-2 mb-4">
+            <select x-model="ruleFilter.lineup" @change="loadRules()" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-hm-500">
+              <option value="">全ラインナップ</option>
+              <template x-for="lu in lineupsList.filter(l=>l.is_active)" :key="lu.code"><option :value="lu.code" x-text="lu.name"></option></template>
+            </select>
+            <select x-model="ruleFilter.group" @change="loadRules()" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-hm-500">
+              <option value="">全グループ</option>
+              <option value="selection">選択 (selection)</option>
+              <option value="calculation">計算 (calculation)</option>
+              <option value="warning">警告 (warning)</option>
+              <option value="cross_category">カテゴリ横断</option>
+            </select>
+            <input x-model="ruleFilter.search" @input.debounce.300ms="loadRules()" placeholder="工種名・ルールIDで検索..." class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-hm-500 flex-1 min-w-[200px]">
+            <button x-show="ruleFilter.lineup||ruleFilter.group||ruleFilter.search" @click="ruleFilter={lineup:'',group:'',search:''}; loadRules();" class="text-xs text-gray-500 hover:text-red-500 px-2 py-1 rounded hover:bg-gray-100"><i class="fas fa-times mr-1"></i>クリア</button>
+          </div>
+
+          <!-- Rules Table -->
+          <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+            <div x-show="rulesLoading" class="py-8 text-center text-gray-400"><i class="fas fa-spinner fa-spin mr-1"></i>読み込み中...</div>
+            <div x-show="!rulesLoading" class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr>
+                <th class="px-3 py-2.5 text-left text-xs font-semibold text-gray-500">工種</th>
+                <th class="px-3 py-2.5 text-left text-xs font-semibold text-gray-500">ルールID</th>
+                <th class="px-3 py-2.5 text-center text-xs font-semibold text-gray-500">グループ</th>
+                <th class="px-3 py-2.5 text-center text-xs font-semibold text-gray-500">優先度</th>
+                <th class="px-3 py-2.5 text-left text-xs font-semibold text-gray-500">条件</th>
+                <th class="px-3 py-2.5 text-left text-xs font-semibold text-gray-500">アクション</th>
+                <th class="px-3 py-2.5 text-center text-xs font-semibold text-gray-500">状態</th>
+                <th class="px-3 py-2.5 text-center text-xs font-semibold text-gray-500">操作</th>
+              </tr></thead><tbody class="divide-y divide-gray-100">
+                <template x-for="rule in filteredRules()" :key="rule.id"><tr class="hover:bg-gray-50 text-xs" :class="!rule.is_active && 'opacity-50 bg-gray-50'">
+                  <td class="px-3 py-2.5">
+                    <div class="font-medium text-gray-800 text-xs" x-text="rule.item_name || rule.master_item_id"></div>
+                    <div class="text-[10px] text-gray-400 font-mono" x-text="rule.category_code"></div>
+                  </td>
+                  <td class="px-3 py-2.5 font-mono text-[10px] text-gray-500 max-w-[140px] truncate" :title="rule.id" x-text="rule.id"></td>
+                  <td class="px-3 py-2.5 text-center"><span class="px-1.5 py-0.5 text-[10px] rounded-full font-medium" :class="ruleGroupClass(rule.rule_group)" x-text="ruleGroupLabel(rule.rule_group)"></span></td>
+                  <td class="px-3 py-2.5 text-center font-mono text-xs" x-text="rule.priority"></td>
+                  <td class="px-3 py-2.5 max-w-[220px]"><div class="space-y-0.5" x-html="formatConditions(rule.conditions_json)"></div></td>
+                  <td class="px-3 py-2.5 max-w-[200px]"><div class="space-y-0.5" x-html="formatActions(rule.actions_json)"></div></td>
+                  <td class="px-3 py-2.5 text-center"><span class="px-2 py-0.5 text-[10px] rounded-full" :class="rule.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'" x-text="rule.is_active ? '有効' : '無効'"></span></td>
+                  <td class="px-3 py-2.5 text-center whitespace-nowrap">
+                    <button @click="openRuleEdit(rule)" class="text-hm-600 hover:text-hm-800 p-1 hover:bg-hm-50 rounded" title="編集"><i class="fas fa-pen-to-square"></i></button>
+                    <button @click="toggleRule(rule)" class="p-1 rounded ml-0.5" :class="rule.is_active ? 'text-gray-400 hover:text-red-600 hover:bg-red-50' : 'text-gray-400 hover:text-green-600 hover:bg-green-50'" :title="rule.is_active ? '無効化' : '有効化'"><i :class="rule.is_active ? 'fas fa-toggle-on' : 'fas fa-toggle-off'"></i></button>
+                    <button @click="deleteRule(rule)" class="text-gray-400 hover:text-red-600 p-1 hover:bg-red-50 rounded ml-0.5" title="削除"><i class="fas fa-trash-alt"></i></button>
+                  </td>
+                </tr></template>
+              </tbody></table>
+              <div x-show="filteredRules().length === 0 && !rulesLoading" class="py-8 text-center text-gray-400">
+                <i class="fas fa-search text-2xl mb-2"></i>
+                <p class="text-sm">条件に一致するルールがありません</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Rule Explanation -->
+          <div class="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
+            <p class="font-semibold text-xs"><i class="fas fa-lightbulb mr-1"></i>ルールの仕組み</p>
+            <ul class="mt-2 space-y-1 text-xs text-amber-700">
+              <li><span class="inline-block px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-medium mr-1">選択</span>条件を満たす工種を見積に含める / 除外する</li>
+              <li><span class="inline-block px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-[10px] font-medium mr-1">計算</span>金額・数量・単価を条件に応じて自動設定する</li>
+              <li><span class="inline-block px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded text-[10px] font-medium mr-1">警告</span>特定条件で担当者に手動確認を促す警告を出す</li>
+              <li><span class="inline-block px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-[10px] font-medium mr-1">横断</span>他カテゴリの工種に影響するルール</li>
+            </ul>
+          </div>
+        </div>
       </div>
       <!-- Lineup Edit Modal -->
       <div x-show="lineupEditModal.show" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" @click.self="lineupEditModal.show=false">
@@ -1332,6 +1412,159 @@ uiRoutes.get('/ui/admin', (c) => {
             <button @click="saveLineup()" class="px-5 py-2 text-sm bg-hm-600 text-white rounded-lg hover:bg-hm-700 transition font-medium" :disabled="lineupSaving">
               <span x-show="!lineupSaving"><i class="fas fa-check mr-1"></i>保存</span>
               <span x-show="lineupSaving"><i class="fas fa-spinner fa-spin mr-1"></i>保存中...</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================ -->
+      <!-- Rule Edit/Create Modal -->
+      <!-- ============================================ -->
+      <div x-show="ruleModal.show" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" @click.self="ruleModal.show=false">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 slide-in" @click.stop>
+          <h2 class="text-lg font-bold mb-1" x-text="ruleModal.isNew ? '新規ルール作成' : 'ルール編集'"></h2>
+          <p class="text-xs text-gray-500 mb-4" x-show="ruleModal.isNew">工種に対する自動計算条件・アクションを設定します</p>
+          <p class="text-xs text-gray-500 mb-4" x-show="!ruleModal.isNew"><span class="font-mono bg-gray-100 px-1.5 py-0.5 rounded" x-text="ruleModal.form.id"></span></p>
+
+          <div class="space-y-4">
+            <!-- Basic Info -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div><label class="block text-xs font-medium text-gray-500 mb-1">対象工種 <span class="text-red-400">*</span></label>
+                <select x-model="ruleModal.form.master_item_id" :disabled="!ruleModal.isNew" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500 disabled:bg-gray-100">
+                  <option value="">-- 工種を選択 --</option>
+                  <template x-for="cat in categories" :key="cat.category_code">
+                    <optgroup :label="cat.category_name">
+                      <template x-for="item in masterItems.filter(i => i.category_code === cat.category_code)" :key="item.id">
+                        <option :value="item.id" x-text="item.item_name + ' (' + item.id + ')'"></option>
+                      </template>
+                    </optgroup>
+                  </template>
+                </select>
+              </div>
+              <div><label class="block text-xs font-medium text-gray-500 mb-1">ルールグループ <span class="text-red-400">*</span></label>
+                <select x-model="ruleModal.form.rule_group" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500">
+                  <option value="selection">選択 (selection)</option>
+                  <option value="calculation">計算 (calculation)</option>
+                  <option value="warning">警告 (warning)</option>
+                  <option value="cross_category">カテゴリ横断</option>
+                </select>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div><label class="block text-xs font-medium text-gray-500 mb-1">ルール名</label>
+                <input x-model="ruleModal.form.rule_name" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500" placeholder="例: SHIN/RIN 25坪未満"></div>
+              <div><label class="block text-xs font-medium text-gray-500 mb-1">優先度 (小さい方が先)</label>
+                <input x-model.number="ruleModal.form.priority" type="number" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500"></div>
+            </div>
+
+            <!-- ===== Conditions Builder ===== -->
+            <div>
+              <div class="flex justify-between items-center mb-2">
+                <label class="text-xs font-semibold text-gray-700"><i class="fas fa-filter mr-1 text-blue-500"></i>条件（AND）</label>
+                <button @click="ruleModal.form.conditions.push({field:'lineup',operator:'=',value:''})" class="text-xs text-hm-600 hover:text-hm-800 hover:bg-hm-50 px-2 py-1 rounded"><i class="fas fa-plus mr-0.5"></i>条件追加</button>
+              </div>
+              <div x-show="ruleModal.form.conditions.length === 0" class="bg-gray-50 rounded-lg p-3 text-xs text-gray-400 text-center">条件なし（常に適用）</div>
+              <div class="space-y-2">
+                <template x-for="(cond, ci) in ruleModal.form.conditions" :key="ci">
+                  <div class="flex items-center gap-2 bg-gray-50 rounded-lg p-2.5">
+                    <select x-model="cond.field" @change="if(cond.field==='lineup'){cond.operator='in';cond.value=[];} else if(['tsubo','building_area_m2','total_floor_area_m2'].includes(cond.field)){cond.operator='=';cond.value='';}" class="border border-gray-300 rounded px-2 py-1.5 text-xs focus:ring-2 focus:ring-hm-500 w-[130px]">
+                      <option value="lineup">ラインナップ</option>
+                      <option value="tsubo">坪数</option>
+                      <option value="building_area_m2">建築面積(m2)</option>
+                      <option value="total_floor_area_m2">延床面積(m2)</option>
+                      <option value="insulation_grade">断熱等級</option>
+                      <option value="is_shizuoka_prefecture">静岡県</option>
+                      <option value="has_yakisugi">焼杉</option>
+                      <option value="is_cleaning_area_standard">清掃面積基準</option>
+                    </select>
+                    <select x-model="cond.operator" class="border border-gray-300 rounded px-2 py-1.5 text-xs focus:ring-2 focus:ring-hm-500 w-[90px]">
+                      <option value="=">=</option>
+                      <option value="!=">!=</option>
+                      <option value=">">></option>
+                      <option value=">=">>=</option>
+                      <option value="<"><</option>
+                      <option value="<="><=</option>
+                      <option value="in">含む (in)</option>
+                      <option value="not_in">含まない</option>
+                      <option value="between">範囲 (between)</option>
+                    </select>
+                    <!-- Value input: depends on field & operator -->
+                    <template x-if="cond.field === 'lineup' && (cond.operator === 'in' || cond.operator === 'not_in')">
+                      <div class="flex flex-wrap gap-1 flex-1">
+                        <template x-for="lu in lineupsList.filter(l=>l.is_active)" :key="lu.code">
+                          <label class="inline-flex items-center gap-0.5 text-[10px] bg-white border rounded px-1.5 py-1 cursor-pointer hover:bg-hm-50" :class="(Array.isArray(cond.value) && cond.value.includes(lu.code)) ? 'border-hm-500 bg-hm-50 text-hm-700 font-medium' : 'border-gray-300 text-gray-600'">
+                            <input type="checkbox" :value="lu.code" x-model="cond.value" class="hidden">
+                            <span x-text="lu.name"></span>
+                          </label>
+                        </template>
+                      </div>
+                    </template>
+                    <template x-if="cond.operator === 'between'">
+                      <div class="flex items-center gap-1 flex-1">
+                        <input x-model.number="cond.value[0]" type="number" step="any" class="border border-gray-300 rounded px-2 py-1.5 text-xs w-20 focus:ring-2 focus:ring-hm-500" placeholder="下限">
+                        <span class="text-gray-400 text-xs">~</span>
+                        <input x-model.number="cond.value[1]" type="number" step="any" class="border border-gray-300 rounded px-2 py-1.5 text-xs w-20 focus:ring-2 focus:ring-hm-500" placeholder="上限">
+                      </div>
+                    </template>
+                    <template x-if="cond.field !== 'lineup' && cond.operator !== 'between' && !(cond.field === 'lineup' && (cond.operator === 'in' || cond.operator === 'not_in'))">
+                      <input x-model="cond.value" class="border border-gray-300 rounded px-2 py-1.5 text-xs flex-1 focus:ring-2 focus:ring-hm-500" :type="['tsubo','building_area_m2','total_floor_area_m2'].includes(cond.field) ? 'number' : 'text'" :step="['tsubo','building_area_m2','total_floor_area_m2'].includes(cond.field) ? 'any' : undefined" placeholder="値">
+                    </template>
+                    <button @click="ruleModal.form.conditions.splice(ci,1)" class="text-gray-400 hover:text-red-500 p-1 rounded hover:bg-red-50 flex-shrink-0"><i class="fas fa-times"></i></button>
+                  </div>
+                </template>
+              </div>
+            </div>
+
+            <!-- ===== Actions Builder ===== -->
+            <div>
+              <div class="flex justify-between items-center mb-2">
+                <label class="text-xs font-semibold text-gray-700"><i class="fas fa-bolt mr-1 text-amber-500"></i>アクション <span class="text-red-400">*</span></label>
+                <button @click="ruleModal.form.actions.push({type:'select',value:null})" class="text-xs text-hm-600 hover:text-hm-800 hover:bg-hm-50 px-2 py-1 rounded"><i class="fas fa-plus mr-0.5"></i>アクション追加</button>
+              </div>
+              <div x-show="ruleModal.form.actions.length === 0" class="bg-red-50 rounded-lg p-3 text-xs text-red-400 text-center">アクションを1つ以上設定してください</div>
+              <div class="space-y-2">
+                <template x-for="(act, ai) in ruleModal.form.actions" :key="ai">
+                  <div class="flex items-center gap-2 bg-gray-50 rounded-lg p-2.5">
+                    <select x-model="act.type" @change="act.value = ['select','deselect','flag_manual_confirmation'].includes(act.type) ? null : ''" class="border border-gray-300 rounded px-2 py-1.5 text-xs focus:ring-2 focus:ring-hm-500 w-[170px]">
+                      <option value="select">選択する (select)</option>
+                      <option value="deselect">除外する (deselect)</option>
+                      <option value="set_quantity">数量を設定</option>
+                      <option value="set_fixed_amount">固定額を設定</option>
+                      <option value="set_unit_price">単価を設定</option>
+                      <option value="add_amount">金額を加算</option>
+                      <option value="set_reference_field">参照フィールド設定</option>
+                      <option value="flag_manual_confirmation">手動確認フラグ</option>
+                      <option value="show_warning">警告表示</option>
+                    </select>
+                    <template x-if="['set_quantity','set_fixed_amount','set_unit_price','add_amount'].includes(act.type)">
+                      <input x-model.number="act.value" type="number" step="any" class="border border-gray-300 rounded px-2 py-1.5 text-xs flex-1 focus:ring-2 focus:ring-hm-500" :placeholder="act.type==='set_quantity' ? '数量' : '金額 (円)'">
+                    </template>
+                    <template x-if="act.type === 'set_reference_field'">
+                      <select x-model="act.value" class="border border-gray-300 rounded px-2 py-1.5 text-xs flex-1 focus:ring-2 focus:ring-hm-500">
+                        <option value="tsubo">坪数</option>
+                        <option value="building_area_m2">建築面積(m2)</option>
+                        <option value="total_floor_area_m2">延床面積(m2)</option>
+                      </select>
+                    </template>
+                    <template x-if="act.type === 'show_warning'">
+                      <input x-model="act.value" class="border border-gray-300 rounded px-2 py-1.5 text-xs flex-1 focus:ring-2 focus:ring-hm-500" placeholder="警告メッセージ">
+                    </template>
+                    <template x-if="['select','deselect','flag_manual_confirmation'].includes(act.type)">
+                      <span class="text-[10px] text-gray-400 flex-1 italic" x-text="act.type==='select'?'この工種を見積に含める':act.type==='deselect'?'この工種を見積から除外':'手動確認が必要な警告を出す'"></span>
+                    </template>
+                    <button @click="ruleModal.form.actions.splice(ai,1)" class="text-gray-400 hover:text-red-500 p-1 rounded hover:bg-red-50 flex-shrink-0"><i class="fas fa-times"></i></button>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </div>
+
+          <div x-show="ruleError" class="mt-3 p-2 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600" x-text="ruleError"></div>
+          <div class="flex justify-end gap-2 mt-5">
+            <button @click="ruleModal.show=false" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition">キャンセル</button>
+            <button @click="saveRule()" class="px-5 py-2 text-sm bg-hm-600 text-white rounded-lg hover:bg-hm-700 transition font-medium" :disabled="ruleSaving">
+              <span x-show="!ruleSaving"><i class="fas fa-check mr-1"></i>保存</span>
+              <span x-show="ruleSaving"><i class="fas fa-spinner fa-spin mr-1"></i>保存中...</span>
             </button>
           </div>
         </div>
@@ -1374,13 +1607,18 @@ uiRoutes.get('/ui/admin', (c) => {
         lineupEditModal: { show:false, isNew:true, code:null, form:{ code:'', name:'', short_name:'', description:'', sort_order:100, is_custom:false } },
         lineupSaving: false, lineupError: '',
         masterSaving: false, masterError: '',
+        // Rule management state
+        rules: [], rulesLoading: false,
+        ruleFilter: { lineup:'', group:'', search:'' },
+        ruleModal: { show:false, isNew:true, form:{ id:'', master_item_id:'', rule_group:'calculation', rule_name:'', priority:100, conditions:[], actions:[{type:'select',value:null}] } },
+        ruleSaving: false, ruleError: '',
         toast: { show:false, message:'', type:'info' },
         roleLabel(r) { return {admin:'管理者',manager:'マネージャー',estimator:'見積担当',viewer:'閲覧者'}[r]||r; },
         catName(code) { const c = this.categories.find(c=>c.category_code===code); return c ? c.category_name : code; },
         calcLabel(t) { return {per_m2:'面積(m2)ベース',per_tsubo:'坪ベース',per_meter:'mベース',per_piece:'個ベース',range_lookup:'範囲参照',fixed_amount:'固定額',lineup_fixed:'ラインナップ固定',rule_lookup:'ルール参照',manual_quote:'手動見積',product_selection:'商品選択',package_with_delta:'パッケージ',threshold_surcharge:'閾値加算'}[t]||t; },
         showToast(msg, type='success') { this.toast={show:true,message:msg,type}; setTimeout(()=>{this.toast.show=false;},3000); },
         async init() {
-          await Promise.all([this.loadUsers(), this.loadSettings(), this.loadCategories(), this.loadMasterItems(), this.loadLineups()]);
+          await Promise.all([this.loadUsers(), this.loadSettings(), this.loadCategories(), this.loadMasterItems(), this.loadLineups(), this.loadRules()]);
         },
         async loadUsers() { const r = await api.get('/admin/users'); if(r.success) this.users = r.data || []; },
         async loadSettings() { const r = await api.get('/master/system-settings'); if(r.success) this.settings = r.data || []; },
@@ -1467,6 +1705,105 @@ uiRoutes.get('/ui/admin', (c) => {
           const r = await api.patch('/master/lineups/' + lu.code, { is_active: active });
           if (r.success) { this.showToast(active ? '有効化しました' : '無効化しました'); await this.loadLineups(); }
           else { this.showToast(r.error || 'エラー', 'error'); }
+        },
+        // ---- Rule Management Functions ----
+        async loadRules() {
+          this.rulesLoading = true;
+          const params = new URLSearchParams();
+          if (this.ruleFilter.lineup) params.set('lineup', this.ruleFilter.lineup);
+          if (this.ruleFilter.group) params.set('rule_group', this.ruleFilter.group);
+          if (this.ruleFilter.search) params.set('search', this.ruleFilter.search);
+          const q = params.toString() ? '?' + params.toString() : '';
+          const r = await api.get('/master/rules' + q);
+          if (r.success) this.rules = r.data || [];
+          this.rulesLoading = false;
+        },
+        filteredRules() { return this.rules; },
+        ruleGroupLabel(g) { return {selection:'選択',calculation:'計算',warning:'警告',cross_category:'横断'}[g]||g; },
+        ruleGroupClass(g) { return {selection:'bg-blue-100 text-blue-700',calculation:'bg-green-100 text-green-700',warning:'bg-orange-100 text-orange-700',cross_category:'bg-purple-100 text-purple-700'}[g]||'bg-gray-100 text-gray-700'; },
+        formatConditions(jsonStr) {
+          try {
+            const conds = JSON.parse(jsonStr || '[]');
+            if (conds.length === 0) return '<span class="text-gray-400 text-[10px]">条件なし</span>';
+            const fLabels = {lineup:'ラインナップ',tsubo:'坪数',building_area_m2:'建築面積',total_floor_area_m2:'延床面積',insulation_grade:'断熱等級',is_shizuoka_prefecture:'静岡県',has_yakisugi:'焼杉',is_cleaning_area_standard:'清掃面積基準'};
+            return conds.map(c => {
+              const f = fLabels[c.field] || c.field;
+              const v = Array.isArray(c.value) ? c.value.join(', ') : c.value;
+              return '<span class="inline-block text-[10px] bg-blue-50 text-blue-700 rounded px-1.5 py-0.5 mr-0.5 mb-0.5">' + f + ' ' + c.operator + ' ' + v + '</span>';
+            }).join('');
+          } catch { return '<span class="text-red-400 text-[10px]">JSON解析エラー</span>'; }
+        },
+        formatActions(jsonStr) {
+          try {
+            const acts = JSON.parse(jsonStr || '[]');
+            if (acts.length === 0) return '<span class="text-gray-400 text-[10px]">アクションなし</span>';
+            const tLabels = {select:'選択',deselect:'除外',set_quantity:'数量=',set_fixed_amount:'固定額=',set_unit_price:'単価=',add_amount:'加算=',set_reference_field:'参照=',flag_manual_confirmation:'手動確認',show_warning:'警告'};
+            return acts.map(a => {
+              const t = tLabels[a.type] || a.type;
+              const v = a.value != null ? (['set_fixed_amount','set_unit_price','add_amount'].includes(a.type) ? Number(a.value).toLocaleString() + '円' : a.value) : '';
+              const cls = ['select'].includes(a.type) ? 'bg-green-50 text-green-700' : ['deselect'].includes(a.type) ? 'bg-red-50 text-red-700' : ['flag_manual_confirmation','show_warning'].includes(a.type) ? 'bg-orange-50 text-orange-700' : 'bg-gray-100 text-gray-700';
+              return '<span class="inline-block text-[10px] ' + cls + ' rounded px-1.5 py-0.5 mr-0.5 mb-0.5">' + t + (v ? ' ' + v : '') + '</span>';
+            }).join('');
+          } catch { return '<span class="text-red-400 text-[10px]">JSON解析エラー</span>'; }
+        },
+        openRuleCreate() {
+          this.ruleModal = { show:true, isNew:true, form:{
+            id:'', master_item_id:'', rule_group:'calculation', rule_name:'', priority:100,
+            conditions:[{field:'lineup',operator:'in',value:[]}], actions:[{type:'select',value:null}]
+          }};
+          this.ruleError = '';
+        },
+        openRuleEdit(rule) {
+          let conditions = [];
+          let actions = [];
+          try { conditions = JSON.parse(rule.conditions_json || '[]'); } catch {}
+          try { actions = JSON.parse(rule.actions_json || '[]'); } catch {}
+          this.ruleModal = { show:true, isNew:false, form:{
+            id: rule.id, master_item_id: rule.master_item_id, rule_group: rule.rule_group,
+            rule_name: rule.rule_name || '', priority: rule.priority || 100,
+            conditions: conditions, actions: actions
+          }};
+          this.ruleError = '';
+        },
+        async saveRule() {
+          this.ruleSaving = true; this.ruleError = '';
+          const f = this.ruleModal.form;
+          if (!f.master_item_id) { this.ruleError = '対象工種を選択してください'; this.ruleSaving = false; return; }
+          if (!f.actions || f.actions.length === 0) { this.ruleError = 'アクションを1つ以上設定してください'; this.ruleSaving = false; return; }
+          // Clean condition values
+          const cleanConds = f.conditions.map(c => {
+            const cc = { field: c.field, operator: c.operator, value: c.value };
+            if (cc.operator === 'between' && Array.isArray(cc.value)) cc.value = cc.value.map(Number);
+            else if (['tsubo','building_area_m2','total_floor_area_m2'].includes(cc.field) && !['in','not_in','between'].includes(cc.operator)) cc.value = Number(cc.value);
+            return cc;
+          });
+          const cleanActs = f.actions.map(a => {
+            const ca = { type: a.type };
+            if (['set_quantity','set_fixed_amount','set_unit_price','add_amount'].includes(a.type)) ca.value = Number(a.value);
+            else if (a.value != null && a.value !== '') ca.value = a.value;
+            return ca;
+          });
+          const body = { master_item_id: f.master_item_id, rule_group: f.rule_group, rule_name: f.rule_name || undefined, priority: f.priority, conditions: cleanConds, actions: cleanActs };
+          let r;
+          if (this.ruleModal.isNew) {
+            r = await api.post('/master/rules', body);
+          } else {
+            r = await api.patch('/master/rules/' + f.id, body);
+          }
+          this.ruleSaving = false;
+          if (r.success) { this.ruleModal.show = false; this.showToast(this.ruleModal.isNew ? 'ルールを追加しました' : 'ルールを更新しました'); await this.loadRules(); }
+          else { this.ruleError = r.error || '保存に失敗しました'; }
+        },
+        async toggleRule(rule) {
+          const r = await api.patch('/master/rules/' + rule.id, { is_active: !rule.is_active });
+          if (r.success) { this.showToast(rule.is_active ? '無効化しました' : '有効化しました'); await this.loadRules(); }
+          else { this.showToast(r.error || 'エラー', 'error'); }
+        },
+        async deleteRule(rule) {
+          if (!confirm('ルール「' + (rule.rule_name || rule.id) + '」を削除しますか？\\nこの操作は元に戻せません。')) return;
+          const r = await api.del('/master/rules/' + rule.id);
+          if (r.success) { this.showToast('ルールを削除しました'); await this.loadRules(); }
+          else { this.showToast(r.error || '削除に失敗しました', 'error'); }
         },
         async updateSetting(key, value) {
           const r = await api.patch('/master/system-settings/' + key, { setting_value: value });
