@@ -198,7 +198,21 @@ uiRoutes.get('/ui/projects', (c) => {
         </template>
       </div>
       <div x-show="!loading && projects.length === 0" class="bg-white rounded-xl border p-12 text-center">
-        <i class="fas fa-inbox text-4xl text-gray-300 mb-3"></i><p class="text-gray-500">案件がありません</p>
+        <i class="fas fa-folder-plus text-5xl text-hm-200 mb-4"></i>
+        <p class="text-xl font-semibold text-gray-700 mb-2">まずは新規案件を作成してください</p>
+        <p class="text-sm text-gray-400 mb-6">案件を作成して、原価見積のワークフローを開始しましょう。</p>
+        <div class="flex justify-center gap-3 text-sm text-gray-500 mb-6 flex-wrap">
+          <span class="flex items-center gap-1.5 px-4 py-2 bg-hm-50 text-hm-700 rounded-full font-medium border border-hm-200"><i class="fas fa-plus-circle"></i>1. 新規案件を作成</span>
+          <i class="fas fa-chevron-right text-gray-300 self-center"></i>
+          <span class="flex items-center gap-1.5 px-4 py-2 bg-gray-50 rounded-full border"><i class="fas fa-edit"></i>2. 建物条件を入力</span>
+          <i class="fas fa-chevron-right text-gray-300 self-center"></i>
+          <span class="flex items-center gap-1.5 px-4 py-2 bg-gray-50 rounded-full border"><i class="fas fa-calculator"></i>3. 初期計算を実行</span>
+          <i class="fas fa-chevron-right text-gray-300 self-center"></i>
+          <span class="flex items-center gap-1.5 px-4 py-2 bg-gray-50 rounded-full border"><i class="fas fa-list-alt"></i>4. 工種を確認・修正</span>
+        </div>
+        <button @click="showCreate = true" class="bg-hm-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-hm-700 transition shadow-sm">
+          <i class="fas fa-plus mr-1.5"></i>最初の案件を作成する
+        </button>
       </div>
       <div x-show="loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <template x-for="i in 6"><div class="bg-white rounded-xl border p-5"><div class="skeleton h-4 w-20 rounded mb-2"></div><div class="skeleton h-5 w-40 rounded mb-3"></div><div class="skeleton h-3 w-32 rounded"></div></div></template>
@@ -326,6 +340,28 @@ uiRoutes.get('/ui/projects/:id', (c) => {
 
       <!-- TAB 1: Risk Centre -->
       <div x-show="activeTab === 'risk'" class="fade-in space-y-5">
+        <div class="bg-gray-50 border-b border-gray-200 rounded-t-lg px-4 py-2.5 mb-1 flex items-center gap-2">
+          <i class="fas fa-info-circle text-hm-500 text-xs"></i>
+          <span class="text-xs text-gray-600">この案件の注意点・未完了項目をまとめた画面です。上から順に確認してください</span>
+        </div>
+        <!-- Next Actions (TOP 3) -->
+        <div x-show="(risk?.risks || []).some(r=>r.action_required)" class="bg-white rounded-xl border-2 border-hm-200 p-4">
+          <h3 class="text-sm font-bold text-hm-700 mb-2"><i class="fas fa-hand-point-right mr-1"></i>次にやること</h3>
+          <div class="space-y-2">
+            <template x-for="r in (risk?.risks || []).filter(r=>r.action_required).slice(0,3)" :key="r.id">
+              <div class="flex items-center gap-2 text-sm">
+                <span class="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+                  :class="r.severity==='error' ? 'bg-red-100' : 'bg-yellow-100'">
+                  <i class="text-xs" :class="r.severity==='error' ? 'fas fa-exclamation text-red-500' : 'fas fa-exclamation text-yellow-500'"></i>
+                </span>
+                <span x-text="r.title" class="text-gray-800"></span>
+              </div>
+            </template>
+          </div>
+        </div>
+        <div x-show="risk && !(risk?.risks || []).some(r=>r.action_required)" class="bg-green-50 border border-green-200 rounded-xl p-4">
+          <div class="text-sm text-green-700 font-medium"><i class="fas fa-check-circle mr-1"></i>現在、緊急の対応事項はありません</div>
+        </div>
         <div x-show="!risk" class="text-center py-12 text-gray-400"><i class="fas fa-spinner fa-spin text-2xl mb-2"></i><p>リスク情報を読み込み中...</p></div>
         <div x-show="risk">
           <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
@@ -350,30 +386,64 @@ uiRoutes.get('/ui/projects/:id', (c) => {
               <div class="text-xs text-gray-400 mt-1" x-text="risk?.sales_gap ? '期待 ' + risk.sales_gap.expected_margin_rate + '%' : '売価未登録'"></div>
             </div>
           </div>
-          <div class="space-y-2"><h3 class="text-sm font-semibold text-gray-700 mb-2"><i class="fas fa-list-ul mr-1"></i>リスク項目 (<span x-text="risk?.risks?.length || 0"></span>)</h3>
-            <template x-for="r in risk?.risks || []" :key="r.id">
-              <div class="bg-white rounded-lg border p-4 flex items-start gap-3 transition hover:shadow-sm"
-                :class="{'border-red-200 bg-red-50/30': r.severity==='error', 'border-yellow-200 bg-yellow-50/30': r.severity==='warning', 'border-blue-200 bg-blue-50/30': r.severity==='info'}">
-                <div class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center"
-                  :class="{'bg-red-100': r.severity==='error', 'bg-yellow-100': r.severity==='warning', 'bg-blue-100': r.severity==='info'}">
-                  <i :class="fmt.severityIcon(r.severity)"></i></div>
-                <div class="flex-1 min-w-0"><div class="flex items-center gap-2">
-                  <span class="font-medium text-sm text-gray-800" x-text="r.title"></span>
-                  <span class="px-1.5 py-0.5 text-xs rounded font-medium"
-                    :class="{'bg-red-100 text-red-700': r.category==='sales', 'bg-purple-100 text-purple-700': r.category==='ai', 'bg-blue-100 text-blue-700': r.category==='regeneration', 'bg-gray-100 text-gray-600': r.category==='input' || r.category==='system', 'bg-orange-100 text-orange-700': r.category==='review'}" x-text="r.category"></span></div>
-                  <p class="text-xs text-gray-500 mt-0.5 truncate" x-text="r.description"></p></div>
-                <span x-show="r.action_required" class="flex-shrink-0 px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full font-medium"><i class="fas fa-bolt mr-0.5"></i>要対応</span>
+          <div class="space-y-4">
+            <!-- Group 1: Immediate Action (error severity) -->
+            <div x-show="(risk?.risks || []).filter(r=>r.severity==='error').length > 0">
+              <h3 class="text-xs font-bold text-red-700 mb-2 flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-red-500"></span>今すぐ対応 (<span x-text="(risk?.risks || []).filter(r=>r.severity==='error').length"></span>)</h3>
+              <div class="space-y-2">
+                <template x-for="r in (risk?.risks || []).filter(r=>r.severity==='error')" :key="r.id">
+                  <div class="bg-white rounded-lg border border-red-200 bg-red-50/30 p-4 flex items-start gap-3 transition hover:shadow-sm">
+                    <div class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-red-100"><i :class="fmt.severityIcon(r.severity)"></i></div>
+                    <div class="flex-1 min-w-0"><div class="flex items-center gap-2">
+                      <span class="font-medium text-sm text-gray-800" x-text="r.title"></span>
+                      <span class="px-1.5 py-0.5 text-xs rounded font-medium"
+                        :class="{'bg-red-100 text-red-700': r.category==='sales', 'bg-purple-100 text-purple-700': r.category==='ai', 'bg-blue-100 text-blue-700': r.category==='regeneration', 'bg-gray-100 text-gray-600': r.category==='input' || r.category==='system', 'bg-orange-100 text-orange-700': r.category==='review'}" x-text="r.category"></span></div>
+                      <p class="text-xs text-gray-500 mt-0.5" x-text="r.description"></p></div>
+                    <span x-show="r.action_required" class="flex-shrink-0 px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full font-medium"><i class="fas fa-bolt mr-0.5"></i>要対応</span>
+                  </div>
+                </template>
               </div>
-            </template>
+            </div>
+            <!-- Group 2: Should Address (warning severity) -->
+            <div x-show="(risk?.risks || []).filter(r=>r.severity==='warning').length > 0">
+              <h3 class="text-xs font-bold text-yellow-700 mb-2 flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-yellow-500"></span>できれば対応 (<span x-text="(risk?.risks || []).filter(r=>r.severity==='warning').length"></span>)</h3>
+              <div class="space-y-2">
+                <template x-for="r in (risk?.risks || []).filter(r=>r.severity==='warning')" :key="r.id">
+                  <div class="bg-white rounded-lg border border-yellow-200 bg-yellow-50/30 p-4 flex items-start gap-3 transition hover:shadow-sm">
+                    <div class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-yellow-100"><i :class="fmt.severityIcon(r.severity)"></i></div>
+                    <div class="flex-1 min-w-0"><div class="flex items-center gap-2">
+                      <span class="font-medium text-sm text-gray-800" x-text="r.title"></span>
+                      <span class="px-1.5 py-0.5 text-xs rounded font-medium"
+                        :class="{'bg-red-100 text-red-700': r.category==='sales', 'bg-purple-100 text-purple-700': r.category==='ai', 'bg-blue-100 text-blue-700': r.category==='regeneration', 'bg-gray-100 text-gray-600': r.category==='input' || r.category==='system', 'bg-orange-100 text-orange-700': r.category==='review'}" x-text="r.category"></span></div>
+                      <p class="text-xs text-gray-500 mt-0.5" x-text="r.description"></p></div>
+                    <span x-show="r.action_required" class="flex-shrink-0 px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-full font-medium"><i class="fas fa-bolt mr-0.5"></i>要対応</span>
+                  </div>
+                </template>
+              </div>
+            </div>
+            <!-- Group 3: Reference (info severity) -->
+            <div x-show="(risk?.risks || []).filter(r=>r.severity==='info').length > 0">
+              <h3 class="text-xs font-bold text-blue-700 mb-2 flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-blue-500"></span>参考情報 (<span x-text="(risk?.risks || []).filter(r=>r.severity==='info').length"></span>)</h3>
+              <div class="space-y-2">
+                <template x-for="r in (risk?.risks || []).filter(r=>r.severity==='info')" :key="r.id">
+                  <div class="bg-white rounded-lg border border-blue-100 bg-blue-50/20 p-3 flex items-start gap-3 transition hover:shadow-sm">
+                    <div class="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center bg-blue-100"><i :class="fmt.severityIcon(r.severity)" class="text-xs"></i></div>
+                    <div class="flex-1 min-w-0"><span class="text-sm text-gray-700" x-text="r.title"></span>
+                      <p class="text-xs text-gray-400 mt-0.5" x-text="r.description"></p></div>
+                  </div>
+                </template>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- TAB 2: Cost Items -->
-      <div x-show="activeTab === 'items'" class="fade-in">
-
-      <!-- TAB: Project Edit (CR-05) -->
+      <!-- TAB 2: Project Edit (建物条件) -->
       <div x-show="activeTab === 'edit'" class="fade-in space-y-5">
+        <div class="bg-gray-50 border-b border-gray-200 rounded-t-lg px-4 py-2.5 mb-1 flex items-center gap-2">
+          <i class="fas fa-info-circle text-hm-500 text-xs"></i>
+          <span class="text-xs text-gray-600">建物条件を入力する画面です。ここを変えると原価計算に影響します</span>
+        </div>
         <div x-show="editError" class="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600"><i class="fas fa-exclamation-circle mr-1"></i><span x-text="editError"></span></div>
 
         <!-- Basic Info -->
@@ -547,7 +617,12 @@ uiRoutes.get('/ui/projects/:id', (c) => {
           <i class="fas fa-spinner fa-spin mr-1"></i>保存中...</div>
       </div>
 
-
+      <!-- TAB 3: Cost Items (工種別原価) -->
+      <div x-show="activeTab === 'items'" class="fade-in">
+        <div class="bg-gray-50 border-b border-gray-200 rounded-t-lg px-4 py-2.5 mb-4 flex items-center gap-2">
+          <i class="fas fa-info-circle text-hm-500 text-xs"></i>
+          <span class="text-xs text-gray-600">自動計算された各工種の金額を確認・手修正する画面です。鉛筆アイコンで個別に修正できます</span>
+        </div>
         <div class="flex items-center justify-between mb-4">
           <div class="flex gap-2"><input x-model="itemSearch" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-64 focus:ring-2 focus:ring-hm-500" placeholder="工種名で検索...">
             <select x-model="itemReviewFilter" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm"><option value="">全ステータス</option><option value="pending">未確認</option><option value="confirmed">確認済</option><option value="needs_review">要確認</option><option value="flagged">フラグ</option></select></div>
@@ -564,10 +639,11 @@ uiRoutes.get('/ui/projects/:id', (c) => {
             <th class="px-3 py-2.5 text-center text-xs font-semibold text-gray-500 w-16">操作</th>
           </tr></thead><tbody class="divide-y divide-gray-100">
             <template x-for="item in filteredItems()" :key="item.id">
-              <tr class="hover:bg-gray-50 text-sm cursor-pointer transition" @click="openEditModal(item)">
+              <tr class="hover:bg-gray-50 text-sm cursor-pointer transition" @click="openEditModal(item)"
+                :class="item.final_amount === 0 ? 'opacity-40' : (item.manual_amount != null || item.manual_quantity != null || item.manual_unit_price != null) ? 'border-l-2 border-l-orange-400' : ''">
                 <td class="px-3 py-2.5 text-xs text-gray-500 font-mono" x-text="item.category_code"></td>
                 <td class="px-3 py-2.5"><div class="text-gray-800 font-medium" x-text="item.item_name"></div>
-                  <div x-show="item.override_reason" class="text-xs text-orange-500 mt-0.5 truncate max-w-xs" x-text="item.override_reason"></div></td>
+                  <div x-show="item.override_reason" class="text-xs text-orange-500 mt-0.5 truncate max-w-xs"><i class="fas fa-pen text-orange-400 mr-0.5"></i><span x-text="item.override_reason"></span></div></td>
                 <td class="px-3 py-2.5 text-right font-mono text-xs"><span x-text="item.final_quantity || '-'"></span><span class="text-gray-400 ml-0.5" x-text="item.unit || ''"></span></td>
                 <td class="px-3 py-2.5 text-right text-gray-500" x-text="fmt.yen(item.auto_amount)"></td>
                 <td class="px-3 py-2.5 text-right font-semibold" :class="item.manual_amount != null ? 'text-orange-600' : 'text-gray-800'" x-text="fmt.yen(item.final_amount)"></td>
@@ -577,7 +653,19 @@ uiRoutes.get('/ui/projects/:id', (c) => {
               </tr>
             </template>
           </tbody></table></div>
-          <div x-show="items.length === 0" class="py-12 text-center text-gray-400"><i class="fas fa-calculator text-3xl mb-2"></i><p>スナップショットを作成してください</p></div>
+          <div x-show="items.length === 0" class="py-12 text-center">
+            <i class="fas fa-calculator text-4xl text-gray-200 mb-3"></i>
+            <p class="text-lg font-medium text-gray-600 mb-2">工種別原価がまだありません</p>
+            <p class="text-sm text-gray-400 mb-4">まだ初期計算が実行されていません。</p>
+            <p class="text-sm text-gray-400">先に右上の <span class="font-semibold text-hm-600">「初期計算」</span> を押すと、この画面に原価明細が表示されます。</p>
+            <div class="mt-6 flex justify-center gap-3 text-xs text-gray-400">
+              <span class="px-3 py-1.5 bg-gray-100 rounded-full">1. 建物条件を入力</span>
+              <i class="fas fa-chevron-right text-gray-300 self-center"></i>
+              <span class="px-3 py-1.5 bg-hm-100 text-hm-700 rounded-full font-medium">2. 初期計算を実行</span>
+              <i class="fas fa-chevron-right text-gray-300 self-center"></i>
+              <span class="px-3 py-1.5 bg-gray-100 rounded-full">3. ここで確認・修正</span>
+            </div>
+          </div>
         </div>
         <!-- Edit Modal -->
         <div x-show="editModal.show" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" @click.self="editModal.show=false">
@@ -607,6 +695,10 @@ uiRoutes.get('/ui/projects/:id', (c) => {
 
       <!-- TAB 3: Diff Resolution -->
       <div x-show="activeTab === 'diffs'" class="fade-in">
+        <div class="bg-gray-50 border-b border-gray-200 rounded-t-lg px-4 py-2.5 mb-4 flex items-center gap-2">
+          <i class="fas fa-info-circle text-hm-500 text-xs"></i>
+          <span class="text-xs text-gray-600">再計算で変わった工種だけを確認し、新しい値を採用するか決める画面です</span>
+        </div>
         <div x-show="diffMeta" class="flex items-center gap-4 mb-4 bg-white rounded-lg border p-3">
           <div class="text-sm"><span class="font-semibold" x-text="diffMeta?.total || 0"></span> 件の差分</div>
           <div class="flex gap-2 text-xs"><span class="px-2 py-0.5 bg-red-100 text-red-700 rounded-full">重要 <span x-text="diffMeta?.significant || 0"></span></span>
@@ -615,7 +707,15 @@ uiRoutes.get('/ui/projects/:id', (c) => {
           <div class="flex-1"></div>
           <select x-model="diffFilter" @change="loadDiffs()" class="border border-gray-300 rounded-lg px-2 py-1 text-xs"><option value="">全件</option><option value="pending">未解決のみ</option><option value="significant">重要のみ</option></select>
         </div>
-        <div x-show="diffs.length === 0 && !diffsLoading" class="bg-white rounded-xl border p-12 text-center text-gray-400"><i class="fas fa-check-circle text-4xl text-green-400 mb-3"></i><p class="text-lg font-medium text-gray-600">未解決の差分はありません</p></div>
+        <div x-show="diffs.length === 0 && !diffsLoading" class="bg-white rounded-xl border p-12 text-center">
+          <i class="fas fa-check-circle text-4xl text-green-400 mb-3"></i>
+          <p class="text-lg font-medium text-gray-600 mb-2">差分はありません</p>
+          <div class="mt-3 text-sm text-gray-400 max-w-md mx-auto space-y-1.5">
+            <p>建物条件やラインナップを変更して再計算した時だけ使う画面です。</p>
+            <p>前回計算と今回計算で変わった工種を比較します。</p>
+            <p class="text-green-600 font-medium"><i class="fas fa-check mr-1"></i>差分がない場合は、ここでの作業は不要です。</p>
+          </div>
+        </div>
         <div class="space-y-3">
           <template x-for="d in diffs" :key="d.id">
             <div class="bg-white rounded-lg border p-4 transition hover:shadow-sm" :class="{'border-red-300':d.is_significant&&d.resolution_status==='pending','opacity-60':d.resolution_status!=='pending'}">
@@ -652,17 +752,49 @@ uiRoutes.get('/ui/projects/:id', (c) => {
 
       <!-- TAB 4: Cost Summary -->
       <div x-show="activeTab === 'summary'" class="fade-in">
+        <div class="bg-gray-50 border-b border-gray-200 rounded-t-lg px-4 py-2.5 mb-4 flex items-center gap-2">
+          <i class="fas fa-info-circle text-hm-500 text-xs"></i>
+          <span class="text-xs text-gray-600">カテゴリごとの原価合計を見る画面です。どこにコストが偏っているかを確認します</span>
+        </div>
+        <!-- Empty state when no snapshot -->
+        <div x-show="!snapshot" class="bg-white rounded-xl border p-12 text-center">
+          <i class="fas fa-chart-pie text-4xl text-gray-200 mb-3"></i>
+          <p class="text-lg font-medium text-gray-600 mb-2">原価集計がまだありません</p>
+          <p class="text-sm text-gray-400">初期計算を実行すると、カテゴリ別の原価集計がここに表示されます。</p>
+          <div class="mt-6 flex justify-center gap-3 text-xs text-gray-400">
+            <span class="px-3 py-1.5 bg-gray-100 rounded-full">1. 建物条件を入力</span>
+            <i class="fas fa-chevron-right text-gray-300 self-center"></i>
+            <span class="px-3 py-1.5 bg-hm-100 text-hm-700 rounded-full font-medium">2. 初期計算を実行</span>
+            <i class="fas fa-chevron-right text-gray-300 self-center"></i>
+            <span class="px-3 py-1.5 bg-gray-100 rounded-full">3. ここで集計確認</span>
+          </div>
+        </div>
+        <div x-show="snapshot">
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
           <div class="bg-white rounded-xl border p-4 text-center"><div class="text-xs text-gray-500 mb-1">原価合計</div><div class="text-xl font-bold text-gray-800" x-text="fmt.yen(snapshot?.total_cost)"></div></div>
           <div class="bg-white rounded-xl border p-4 text-center"><div class="text-xs text-gray-500 mb-1">標準原価</div><div class="text-xl font-bold text-blue-700" x-text="fmt.yen(snapshot?.total_standard_cost)"></div></div>
           <div class="bg-white rounded-xl border p-4 text-center"><div class="text-xs text-gray-500 mb-1">太陽光原価</div><div class="text-xl font-bold text-yellow-600" x-text="fmt.yen(snapshot?.total_solar_cost)"></div></div>
           <div class="bg-white rounded-xl border p-4 text-center"><div class="text-xs text-gray-500 mb-1">オプション原価</div><div class="text-xl font-bold text-purple-600" x-text="fmt.yen(snapshot?.total_option_cost)"></div></div>
         </div>
+        <!-- Top 3 categories highlight -->
+        <div x-show="summaries.length > 0" class="grid grid-cols-3 gap-3 mb-4">
+          <template x-for="(s, idx) in [...summaries].sort((a,b) => b.final_total_amount - a.final_total_amount).slice(0,3)" :key="'top'+idx">
+            <div class="rounded-xl border-2 p-3" :class="idx === 0 ? 'border-hm-300 bg-hm-50' : idx === 1 ? 'border-blue-200 bg-blue-50' : 'border-gray-200 bg-gray-50'">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white" :class="idx === 0 ? 'bg-hm-500' : idx === 1 ? 'bg-blue-500' : 'bg-gray-400'" x-text="idx + 1"></span>
+                <span class="text-sm font-semibold text-gray-800" x-text="s.category_code"></span>
+              </div>
+              <div class="text-lg font-bold font-mono" :class="idx === 0 ? 'text-hm-700' : 'text-gray-700'" x-text="fmt.yen(s.final_total_amount)"></div>
+              <div class="text-xs text-gray-400" x-text="snapshot?.total_cost ? Math.round(s.final_total_amount / snapshot.total_cost * 100) + '% of total' : ''"></div>
+            </div>
+          </template>
+        </div>
         <div class="bg-white rounded-xl shadow-sm border overflow-hidden"><table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr>
           <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500">カテゴリ</th><th class="px-4 py-3 text-right text-xs font-semibold text-gray-500">自動合計</th>
           <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500">手動調整</th><th class="px-4 py-3 text-right text-xs font-semibold text-gray-500">最終合計</th><th class="px-4 py-3 text-right text-xs font-semibold text-gray-500">構成比</th>
         </tr></thead><tbody class="divide-y divide-gray-100">
-          <template x-for="s in summaries" :key="s.category_code"><tr class="hover:bg-gray-50 text-sm">
+          <template x-for="s in summaries" :key="s.category_code"><tr class="hover:bg-gray-50 text-sm"
+            :class="snapshot?.total_cost && s.final_total_amount / snapshot.total_cost >= 0.20 ? 'bg-amber-50/50' : s.final_total_amount === 0 ? 'opacity-40' : ''">
             <td class="px-4 py-3"><span class="font-medium text-gray-800" x-text="s.category_code"></span></td>
             <td class="px-4 py-3 text-right text-gray-500 font-mono" x-text="fmt.yen(s.auto_total_amount)"></td>
             <td class="px-4 py-3 text-right font-mono" :class="s.manual_adjustment_amount ? 'text-orange-600 font-semibold' : 'text-gray-300'" x-text="fmt.yen(s.manual_adjustment_amount || 0)"></td>
@@ -672,26 +804,48 @@ uiRoutes.get('/ui/projects/:id', (c) => {
               <span class="text-xs text-gray-400 w-10 text-right" x-text="snapshot?.total_cost ? Math.round(s.final_total_amount / snapshot.total_cost * 100) + '%' : '-'"></span></div></td>
           </tr></template>
         </tbody></table></div>
+        </div><!-- /x-show snapshot -->
       </div>
 
       <!-- TAB 5: Sales Estimate -->
       <div x-show="activeTab === 'sales'" class="fade-in space-y-5">
+        <div class="bg-gray-50 border-b border-gray-200 rounded-t-lg px-4 py-2.5 mb-1 flex items-center gap-2">
+          <i class="fas fa-info-circle text-hm-500 text-xs"></i>
+          <span class="text-xs text-gray-600">お客様への提示価格と粗利を確認する画面です。原価（工事コスト）に対して売価（提示価格）を設定し、粗利（売価−原価）を管理します</span>
+        </div>
+        <!-- Concept explanation -->
+        <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
+          <div class="flex items-center gap-6 text-sm">
+            <div class="flex items-center gap-2"><span class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-600">原価</span><span class="text-gray-600">= 工事コスト</span></div>
+            <i class="fas fa-arrow-right text-gray-300"></i>
+            <div class="flex items-center gap-2"><span class="w-8 h-8 rounded-full bg-hm-200 flex items-center justify-center text-xs font-bold text-hm-700">売価</span><span class="text-gray-600">= お客様への提示価格</span></div>
+            <i class="fas fa-arrow-right text-gray-300"></i>
+            <div class="flex items-center gap-2"><span class="w-8 h-8 rounded-full bg-green-200 flex items-center justify-center text-xs font-bold text-green-700">粗利</span><span class="text-gray-600">= 売価 − 原価</span></div>
+          </div>
+        </div>
+        <!-- No snapshot warning -->
+        <div x-show="!snapshot" class="bg-white rounded-xl border p-12 text-center">
+          <i class="fas fa-calculator text-4xl text-gray-200 mb-3"></i>
+          <p class="text-lg font-medium text-gray-600 mb-2">まだ原価が計算されていません</p>
+          <p class="text-sm text-gray-400">先に<span class="font-semibold text-hm-600">建物条件</span>を入力し、<span class="font-semibold text-hm-600">初期計算</span>を実行してください。原価が確定したら売価を登録できます。</p>
+        </div>
+        <div x-show="snapshot" class="space-y-5">
         <div class="bg-white rounded-xl border p-5"><h3 class="font-semibold mb-3"><i class="fas fa-yen-sign mr-1.5 text-hm-600"></i>売価見積もり登録</h3>
           <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
             <div><label class="block text-xs font-medium text-gray-500 mb-1">種別</label><select x-model="salesForm.estimate_type" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"><option value="rough">概算</option><option value="internal">社内</option><option value="contract">契約</option><option value="execution">実行</option></select></div>
-            <div><label class="block text-xs font-medium text-gray-500 mb-1">売価合計</label><input x-model.number="salesForm.total_sale_price" type="number" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="0"></div>
-            <div><label class="block text-xs font-medium text-gray-500 mb-1">標準売価</label><input x-model.number="salesForm.standard_sale" type="number" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"></div>
-            <div><label class="block text-xs font-medium text-gray-500 mb-1">太陽光売価</label><input x-model.number="salesForm.solar_sale" type="number" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">提示予定金額<span class="text-xs text-gray-400 ml-1">(売価合計)</span></label><input x-model.number="salesForm.total_sale_price" type="number" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" placeholder="0"></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">本体工事提示金額<span class="text-xs text-gray-400 ml-1">(標準)</span></label><input x-model.number="salesForm.standard_sale" type="number" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"></div>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">太陽光提示金額</label><input x-model.number="salesForm.solar_sale" type="number" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"></div>
             <div class="flex items-end"><button @click="createSalesEstimate()" class="w-full bg-hm-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-hm-700 font-medium" :disabled="salesSaving"><span x-show="!salesSaving"><i class="fas fa-paper-plane mr-1"></i>登録</span><span x-show="salesSaving"><i class="fas fa-spinner fa-spin"></i></span></button></div>
           </div>
         </div>
         <!-- Gap Analysis -->
         <div x-show="gap" class="bg-white rounded-xl border p-5">
-          <h3 class="font-semibold mb-3"><i class="fas fa-chart-bar mr-1.5 text-blue-600"></i>乖離分析</h3>
+          <h3 class="font-semibold mb-3"><i class="fas fa-chart-bar mr-1.5 text-blue-600"></i>原価 vs 売価 乖離分析</h3>
           <div class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-3">
-            <div><div class="text-xs text-gray-500">原価合計</div><div class="text-lg font-bold font-mono" x-text="fmt.yen(gap?.total_cost)"></div></div>
-            <div><div class="text-xs text-gray-500">売価合計</div><div class="text-lg font-bold font-mono" x-text="fmt.yen(gap?.total_sale_price)"></div></div>
-            <div><div class="text-xs text-gray-500">差額</div><div class="text-lg font-bold font-mono" :class="gap?.gap_amount >= 0 ? 'text-green-600' : 'text-red-600'" x-text="fmt.yen(gap?.gap_amount)"></div></div>
+            <div><div class="text-xs text-gray-500">原価合計<span class="text-gray-300 ml-1">(コスト)</span></div><div class="text-lg font-bold font-mono" x-text="fmt.yen(gap?.total_cost)"></div></div>
+            <div><div class="text-xs text-gray-500">提示予定金額<span class="text-gray-300 ml-1">(売価)</span></div><div class="text-lg font-bold font-mono" x-text="fmt.yen(gap?.total_sale_price)"></div></div>
+            <div><div class="text-xs text-gray-500">粗利額<span class="text-gray-300 ml-1">(差額)</span></div><div class="text-lg font-bold font-mono" :class="gap?.gap_amount >= 0 ? 'text-green-600' : 'text-red-600'" x-text="fmt.yen(gap?.gap_amount)"></div></div>
             <div><div class="text-xs text-gray-500">粗利率</div><div class="text-lg font-bold" :class="gap?.overall_margin_rate >= 25 ? 'text-green-600' : gap?.overall_margin_rate >= 15 ? 'text-yellow-600' : 'text-red-600'" x-text="fmt.pct(gap?.overall_margin_rate)"></div></div>
             <div><div class="text-xs text-gray-500">乖離率</div><div class="text-lg font-bold font-mono" :class="gap?.margin_deviation > 0 ? 'text-red-600' : 'text-green-600'" x-text="(gap?.margin_deviation > 0 ? '+' : '') + fmt.pct(gap?.margin_deviation)"></div></div>
             <div><div class="text-xs text-gray-500">判定</div>
@@ -703,10 +857,10 @@ uiRoutes.get('/ui/projects/:id', (c) => {
             <div class="text-xs mt-1 opacity-75">期待粗利率: <span x-text="gap?.expected_margin_rate"></span>% / 警告閾値: <span x-text="gap?.thresholds?.sales_gap_warning_threshold"></span>% / エラー閾値: <span x-text="gap?.thresholds?.sales_gap_error_threshold"></span>%</div>
           </div>
           <div class="grid grid-cols-3 gap-3 mt-3 border-t pt-3">
-            <template x-for="g in [{key:'standard_gap', label:'標準'},{key:'solar_gap', label:'太陽光'},{key:'option_gap', label:'オプション'}]" :key="g.key"><div class="text-xs">
+            <template x-for="g in [{key:'standard_gap', label:'本体工事'},{key:'solar_gap', label:'太陽光'},{key:'option_gap', label:'オプション'}]" :key="g.key"><div class="text-xs">
               <div class="font-medium text-gray-700 mb-1" x-text="g.label"></div>
               <div class="flex justify-between"><span class="text-gray-400">原価</span><span class="font-mono" x-text="fmt.yen(gap?.[g.key]?.cost)"></span></div>
-              <div class="flex justify-between"><span class="text-gray-400">売価</span><span class="font-mono" x-text="fmt.yen(gap?.[g.key]?.sale)"></span></div>
+              <div class="flex justify-between"><span class="text-gray-400">提示価格</span><span class="font-mono" x-text="fmt.yen(gap?.[g.key]?.sale)"></span></div>
               <div class="flex justify-between"><span class="text-gray-400">粗利</span><span class="font-mono font-semibold" :class="gap?.[g.key]?.actual_margin >= gap?.[g.key]?.expected_margin ? 'text-green-600' : 'text-red-600'" x-text="fmt.pct(gap?.[g.key]?.actual_margin)"></span></div>
             </div></template>
           </div>
@@ -715,7 +869,7 @@ uiRoutes.get('/ui/projects/:id', (c) => {
         <div x-show="salesEstimates.length > 0" class="bg-white rounded-xl border overflow-hidden">
           <h3 class="font-semibold p-4 pb-2"><i class="fas fa-history mr-1.5 text-gray-500"></i>見積履歴</h3>
           <table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr>
-            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">種別</th><th class="px-4 py-2 text-right text-xs font-medium text-gray-500">売価</th>
+            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">種別</th><th class="px-4 py-2 text-right text-xs font-medium text-gray-500">提示価格</th>
             <th class="px-4 py-2 text-right text-xs font-medium text-gray-500">粗利率</th><th class="px-4 py-2 text-center text-xs font-medium text-gray-500">現行</th><th class="px-4 py-2 text-left text-xs font-medium text-gray-500">日時</th>
           </tr></thead><tbody class="divide-y divide-gray-100"><template x-for="e in salesEstimates" :key="e.id"><tr class="text-sm hover:bg-gray-50">
             <td class="px-4 py-2"><span class="px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700" x-text="fmt.estimateType(e.estimate_type)"></span></td>
@@ -725,10 +879,15 @@ uiRoutes.get('/ui/projects/:id', (c) => {
             <td class="px-4 py-2 text-gray-400 text-xs" x-text="fmt.datetime(e.created_at)"></td>
           </tr></template></tbody></table>
         </div>
+        </div><!-- /x-show snapshot -->
       </div>
 
       <!-- TAB 6: AI & Warnings (Production Hardened) -->
       <div x-show="activeTab === 'ai'" class="fade-in space-y-5">
+        <div class="bg-gray-50 border-b border-gray-200 rounded-t-lg px-4 py-2.5 mb-1 flex items-center gap-2">
+          <i class="fas fa-info-circle text-hm-500 text-xs"></i>
+          <span class="text-xs text-gray-600">AIやルールが検出した警告・確認事項を管理する画面です。未解決の項目を確認し、対応または無視を選択してください</span>
+        </div>
         <!-- AI Status Card -->
         <div class="bg-white rounded-xl border p-4 flex items-center justify-between">
           <div class="flex items-center gap-3">
@@ -870,7 +1029,7 @@ uiRoutes.get('/ui/projects/:id', (c) => {
         risk: null, gap: null, warnings: [], salesEstimates: [], lineups: [],
         aiStatus: null, aiCheckResult: null, aiWarningsList: [], aiWarnings: null,
         loading: true, enqueueing: false, salesSaving: false, aiChecking: false, diffsLoading: false, parsing: false,
-        activeTab: 'risk', showRegenModal: false, regenMode: 'regenerate_preserve_reviewed',
+        activeTab: 'edit', showRegenModal: false, regenMode: 'regenerate_preserve_reviewed',
         toast: { show: false, message: '', type: 'info' },
         itemSearch: '', itemReviewFilter: '', diffFilter: '', warningFilter: 'open',
         parseContent: '', parseFormat: 'text', parseResult: null,
@@ -879,13 +1038,13 @@ uiRoutes.get('/ui/projects/:id', (c) => {
         manualAdjust: { show:false, diff:null, amount:0 },
         salesForm: { estimate_type:'rough', total_sale_price:0, standard_sale:0, solar_sale:0 },
         tabs: [
+          { id:'edit', label:'建物条件', icon:'fas fa-edit', badge:0, badgeColor:'' },
+          { id:'items', label:'工種別原価', icon:'fas fa-list-alt', badge:0, badgeColor:'bg-gray-200 text-gray-600' },
+          { id:'summary', label:'原価集計', icon:'fas fa-chart-pie', badge:0, badgeColor:'' },
+          { id:'sales', label:'売価・粗利', icon:'fas fa-yen-sign', badge:0, badgeColor:'' },
           { id:'risk', label:'リスクセンター', icon:'fas fa-shield-alt', badge:0, badgeColor:'bg-red-500 text-white' },
-          { id:'edit', label:'案件情報', icon:'fas fa-edit', badge:0, badgeColor:'' },
-          { id:'items', label:'工種明細', icon:'fas fa-list-alt', badge:0, badgeColor:'bg-gray-200 text-gray-600' },
-          { id:'diffs', label:'差分解決', icon:'fas fa-code-compare', badge:0, badgeColor:'bg-orange-500 text-white' },
-          { id:'summary', label:'原価サマリ', icon:'fas fa-chart-pie', badge:0, badgeColor:'' },
-          { id:'sales', label:'売価見積', icon:'fas fa-yen-sign', badge:0, badgeColor:'' },
-          { id:'ai', label:'AI・警告', icon:'fas fa-robot', badge:0, badgeColor:'bg-purple-500 text-white' },
+          { id:'diffs', label:'再計算差分', icon:'fas fa-code-compare', badge:0, badgeColor:'bg-orange-500 text-white' },
+          { id:'ai', label:'警告・確認事項', icon:'fas fa-bell', badge:0, badgeColor:'bg-purple-500 text-white' },
         ],
         statusClass(s) { return {'draft':'bg-gray-100 text-gray-600','calculating':'bg-indigo-100 text-indigo-700','in_progress':'bg-blue-100 text-blue-700','needs_review':'bg-yellow-100 text-yellow-700','reviewed':'bg-green-100 text-green-700','archived':'bg-purple-100 text-purple-600'}[s] || 'bg-gray-100 text-gray-600'; },
         lineupName(code) { if (!code) return '未定'; const lu = this.lineups.find(l=>l.code===code); return lu ? lu.name : code; },
