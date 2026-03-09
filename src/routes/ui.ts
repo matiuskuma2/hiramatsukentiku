@@ -446,6 +446,23 @@ uiRoutes.get('/ui/projects/:id', (c) => {
         </div>
         <div x-show="editError" class="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600"><i class="fas fa-exclamation-circle mr-1"></i><span x-text="editError"></span></div>
 
+        <!-- Quick Guide -->
+        <div x-show="!project?.current_snapshot_id" class="bg-blue-50 border border-blue-200 rounded-xl p-4">
+          <div class="flex items-start gap-3">
+            <i class="fas fa-lightbulb text-blue-500 mt-0.5"></i>
+            <div class="text-sm text-blue-800">
+              <span class="font-medium">初めて使う方へ:</span>
+              <span class="text-blue-600">ラインナップ・坪数・建築面積</span>の3つが計算に特に重要です。入力後に右上の「初期計算」を押してください。
+            </div>
+          </div>
+        </div>
+        <div x-show="project?.current_snapshot_id" class="bg-amber-50 border border-amber-200 rounded-xl p-3">
+          <div class="flex items-center gap-2 text-xs text-amber-700">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span>条件を変更した場合は「再計算」を実行すると、原価に反映されます。変更前の値との差分は「再計算差分」タブで確認できます。</span>
+          </div>
+        </div>
+
         <!-- Basic Info -->
         <div class="bg-white rounded-xl border p-5">
           <h3 class="font-semibold mb-4 text-gray-800"><i class="fas fa-home mr-2 text-hm-600"></i>基本情報</h3>
@@ -494,9 +511,9 @@ uiRoutes.get('/ui/projects/:id', (c) => {
         <div class="bg-white rounded-xl border p-5">
           <h3 class="font-semibold mb-4 text-gray-800"><i class="fas fa-ruler-combined mr-2 text-blue-600"></i>面積・寸法</h3>
           <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div><label class="block text-xs font-medium text-gray-500 mb-1">坪数</label>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">坪数 <span class="text-gray-300">(原価の基準値)</span></label>
               <input type="number" step="0.1" :value="project?.tsubo || ''" @change="saveProjectEdit('tsubo', parseFloat($event.target.value) || null)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500" placeholder="35.5"></div>
-            <div><label class="block text-xs font-medium text-gray-500 mb-1">建築面積 (m2)</label>
+            <div><label class="block text-xs font-medium text-gray-500 mb-1">建築面積 <span class="text-gray-300">(m2)</span></label>
               <input type="number" step="0.01" :value="project?.building_area_m2 || ''" @change="saveProjectEdit('building_area_m2', parseFloat($event.target.value) || null)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500"></div>
             <div><label class="block text-xs font-medium text-gray-500 mb-1">延床面積 (m2)</label>
               <input type="number" step="0.01" :value="project?.total_floor_area_m2 || ''" @change="saveProjectEdit('total_floor_area_m2', parseFloat($event.target.value) || null)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-hm-500"></div>
@@ -641,7 +658,7 @@ uiRoutes.get('/ui/projects/:id', (c) => {
             <template x-for="item in filteredItems()" :key="item.id">
               <tr class="hover:bg-gray-50 text-sm cursor-pointer transition" @click="openEditModal(item)"
                 :class="item.final_amount === 0 ? 'opacity-40' : (item.manual_amount != null || item.manual_quantity != null || item.manual_unit_price != null) ? 'border-l-2 border-l-orange-400' : ''">
-                <td class="px-3 py-2.5 text-xs text-gray-500 font-mono" x-text="item.category_code"></td>
+                <td class="px-3 py-2.5 text-xs text-gray-500" x-text="categoryName(item.category_code)"></td>
                 <td class="px-3 py-2.5"><div class="text-gray-800 font-medium" x-text="item.item_name"></div>
                   <div x-show="item.override_reason" class="text-xs text-orange-500 mt-0.5 truncate max-w-xs"><i class="fas fa-pen text-orange-400 mr-0.5"></i><span x-text="item.override_reason"></span></div></td>
                 <td class="px-3 py-2.5 text-right font-mono text-xs"><span x-text="item.final_quantity || '-'"></span><span class="text-gray-400 ml-0.5" x-text="item.unit || ''"></span></td>
@@ -649,7 +666,12 @@ uiRoutes.get('/ui/projects/:id', (c) => {
                 <td class="px-3 py-2.5 text-right font-semibold" :class="item.manual_amount != null ? 'text-orange-600' : 'text-gray-800'" x-text="fmt.yen(item.final_amount)"></td>
                 <td class="px-3 py-2.5 text-center"><span class="px-2 py-0.5 text-xs rounded-full font-medium"
                   :class="{'bg-green-100 text-green-700':item.review_status==='confirmed','bg-gray-100 text-gray-600':item.review_status==='pending','bg-yellow-100 text-yellow-700':item.review_status==='needs_review','bg-red-100 text-red-700':item.review_status==='flagged'}" x-text="fmt.reviewStatus(item.review_status)"></span></td>
-                <td class="px-3 py-2.5 text-center" @click.stop><button @click="openEditModal(item)" class="text-hm-600 hover:text-hm-800 transition"><i class="fas fa-pen-to-square"></i></button></td>
+                <td class="px-3 py-2.5 text-center" @click.stop>
+                  <div class="flex items-center justify-center gap-1">
+                    <button @click="openBasisModal(item)" class="text-blue-500 hover:text-blue-700 transition" title="計算根拠"><i class="fas fa-calculator text-xs"></i></button>
+                    <button @click="openEditModal(item)" class="text-hm-600 hover:text-hm-800 transition" title="編集"><i class="fas fa-pen-to-square"></i></button>
+                  </div>
+                </td>
               </tr>
             </template>
           </tbody></table></div>
@@ -689,6 +711,140 @@ uiRoutes.get('/ui/projects/:id', (c) => {
             <div class="flex justify-end gap-2 mt-5"><button @click="editModal.show=false" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">キャンセル</button>
               <button @click="saveItemEdit()" class="px-5 py-2 text-sm bg-hm-600 text-white rounded-lg hover:bg-hm-700 font-medium" :disabled="editModal.saving"><span x-show="!editModal.saving"><i class="fas fa-save mr-1"></i>保存</span><span x-show="editModal.saving"><i class="fas fa-spinner fa-spin mr-1"></i>保存中...</span></button></div>
             <div x-show="editModal.error" class="mt-3 p-2 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600" x-text="editModal.error"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Calculation Basis Modal -->
+      <div x-show="basisModal.show" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" @click.self="basisModal.show=false">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6 slide-in max-h-[90vh] overflow-y-auto" @click.stop>
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-bold"><i class="fas fa-calculator mr-2 text-blue-600"></i>計算根拠</h2>
+            <button @click="basisModal.show=false" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
+          </div>
+
+          <!-- Item Header -->
+          <div class="bg-gray-50 rounded-lg p-4 mb-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <div class="font-semibold text-gray-800" x-text="basisModal.item?.item_name"></div>
+                <div class="text-xs text-gray-500 mt-0.5 flex items-center gap-2">
+                  <span class="font-mono" x-text="basisModal.item?.category_code"></span>
+                  <span x-show="basisModal.item?.master_item_id" class="text-gray-400" x-text="'ID: ' + basisModal.item?.master_item_id"></span>
+                </div>
+              </div>
+              <span class="px-2.5 py-1 text-xs rounded-full font-medium" :class="calcTypeColor(basisModal.item?.calculation_type)" x-text="calcTypeLabel(basisModal.item?.calculation_type)"></span>
+            </div>
+          </div>
+
+          <!-- Amount Breakdown -->
+          <div class="bg-white border rounded-xl p-4 mb-4">
+            <h3 class="text-sm font-semibold text-gray-700 mb-3"><i class="fas fa-coins mr-1.5 text-yellow-500"></i>金額内訳</h3>
+            <div class="grid grid-cols-3 gap-4">
+              <div class="text-center p-3 rounded-lg bg-gray-50">
+                <div class="text-xs text-gray-500 mb-1">数量</div>
+                <div class="text-sm">
+                  <div class="font-mono font-semibold" x-text="(basisModal.item?.final_quantity || '-') + ' ' + (basisModal.item?.unit || '')"></div>
+                  <div x-show="basisModal.item?.manual_quantity != null" class="text-xs text-orange-500 mt-0.5">
+                    自動: <span x-text="basisModal.item?.auto_quantity || '-'"></span> → 手修正: <span class="font-semibold" x-text="basisModal.item?.manual_quantity"></span></div>
+                </div>
+              </div>
+              <div class="text-center p-3 rounded-lg bg-gray-50">
+                <div class="text-xs text-gray-500 mb-1">単価</div>
+                <div class="text-sm">
+                  <div class="font-mono font-semibold" x-text="fmt.yen(basisModal.item?.final_unit_price)"></div>
+                  <div x-show="basisModal.item?.manual_unit_price != null" class="text-xs text-orange-500 mt-0.5">
+                    自動: <span x-text="fmt.yen(basisModal.item?.auto_unit_price)"></span> → 手修正</div>
+                </div>
+              </div>
+              <div class="text-center p-3 rounded-lg" :class="basisModal.item?.manual_amount != null ? 'bg-orange-50' : 'bg-blue-50'">
+                <div class="text-xs text-gray-500 mb-1">最終金額</div>
+                <div class="text-lg font-mono font-bold" :class="basisModal.item?.manual_amount != null ? 'text-orange-700' : 'text-gray-800'" x-text="fmt.yen(basisModal.item?.final_amount)"></div>
+                <div x-show="basisModal.item?.auto_amount !== basisModal.item?.final_amount" class="text-xs text-gray-400 mt-0.5">
+                  自動: <span class="font-mono" x-text="fmt.yen(basisModal.item?.auto_amount)"></span></div>
+              </div>
+            </div>
+            <div x-show="basisModal.item?.auto_fixed_amount" class="mt-2 text-xs text-gray-500 text-center">
+              <i class="fas fa-info-circle mr-0.5"></i>固定金額: <span class="font-mono" x-text="fmt.yen(basisModal.item?.auto_fixed_amount)"></span></div>
+          </div>
+
+          <!-- Calculation Logic -->
+          <div class="bg-white border rounded-xl p-4 mb-4">
+            <h3 class="text-sm font-semibold text-gray-700 mb-3"><i class="fas fa-cogs mr-1.5 text-gray-500"></i>計算ロジック</h3>
+            <div class="space-y-2 text-sm">
+              <div class="flex items-start gap-2">
+                <span class="text-xs text-gray-400 w-20 flex-shrink-0 pt-0.5">計算方法</span>
+                <span class="px-2 py-0.5 text-xs rounded-full font-medium" :class="calcTypeColor(basisModal.item?.calculation_type)" x-text="calcTypeLabel(basisModal.item?.calculation_type)"></span>
+              </div>
+              <div x-show="basisModal.item?.calculation_basis_note" class="flex items-start gap-2">
+                <span class="text-xs text-gray-400 w-20 flex-shrink-0 pt-0.5">計算根拠</span>
+                <span class="text-gray-700 bg-blue-50 px-2 py-1 rounded text-xs" x-text="basisModal.item?.calculation_basis_note"></span>
+              </div>
+              <div x-show="basisModal.item?.selection_reason" class="flex items-start gap-2">
+                <span class="text-xs text-gray-400 w-20 flex-shrink-0 pt-0.5">選択理由</span>
+                <span class="text-gray-700 text-xs" x-text="basisModal.item?.selection_reason"></span>
+              </div>
+              <div x-show="basisModal.item?.warning_text" class="flex items-start gap-2">
+                <span class="text-xs text-gray-400 w-20 flex-shrink-0 pt-0.5">注意事項</span>
+                <span class="text-amber-700 bg-amber-50 px-2 py-1 rounded text-xs"><i class="fas fa-exclamation-triangle mr-1"></i><span x-text="basisModal.item?.warning_text"></span></span>
+              </div>
+              <div class="flex items-start gap-2">
+                <span class="text-xs text-gray-400 w-20 flex-shrink-0 pt-0.5">選択状態</span>
+                <span class="text-xs" :class="basisModal.item?.is_selected ? 'text-green-600' : 'text-gray-400'">
+                  <i :class="basisModal.item?.is_selected ? 'fas fa-check-circle' : 'fas fa-minus-circle'"></i>
+                  <span x-text="basisModal.item?.is_selected ? '選択中（原価に含まれる）' : '非選択（原価に含まれない）'"></span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Manual Override Info -->
+          <div x-show="basisModal.item?.manual_amount != null || basisModal.item?.manual_quantity != null || basisModal.item?.manual_unit_price != null" class="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-4">
+            <h3 class="text-sm font-semibold text-orange-700 mb-2"><i class="fas fa-pen mr-1.5"></i>手修正情報</h3>
+            <div class="space-y-1.5 text-xs">
+              <div x-show="basisModal.item?.override_reason_category" class="flex gap-2">
+                <span class="text-orange-500 w-16">理由区分</span>
+                <span class="text-gray-700" x-text="basisModal.item?.override_reason_category"></span>
+              </div>
+              <div x-show="basisModal.item?.override_reason" class="flex gap-2">
+                <span class="text-orange-500 w-16">理由</span>
+                <span class="text-gray-700" x-text="basisModal.item?.override_reason"></span>
+              </div>
+              <div x-show="basisModal.item?.vendor_name" class="flex gap-2">
+                <span class="text-orange-500 w-16">業者名</span>
+                <span class="text-gray-700" x-text="basisModal.item?.vendor_name"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Applied Rules -->
+          <div x-show="basisModal.rules.length > 0" class="bg-white border rounded-xl p-4 mb-4">
+            <h3 class="text-sm font-semibold text-gray-700 mb-3"><i class="fas fa-gavel mr-1.5 text-amber-500"></i>適用ルール (<span x-text="basisModal.rules.length"></span>件)</h3>
+            <div class="space-y-2">
+              <template x-for="rule in basisModal.rules" :key="rule.id">
+                <div class="p-2.5 rounded-lg border text-xs" :class="{'bg-blue-50/50 border-blue-200':rule.rule_group==='selection','bg-green-50/50 border-green-200':rule.rule_group==='calculation','bg-amber-50/50 border-amber-200':rule.rule_group==='warning','bg-purple-50/50 border-purple-200':rule.rule_group==='cross_category'}">
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="font-medium text-gray-700" x-text="rule.rule_name || rule.id"></span>
+                    <div class="flex items-center gap-1.5">
+                      <span class="px-1.5 py-0.5 rounded text-xs font-medium"
+                        :class="{'bg-blue-100 text-blue-700':rule.rule_group==='selection','bg-green-100 text-green-700':rule.rule_group==='calculation','bg-amber-100 text-amber-700':rule.rule_group==='warning','bg-purple-100 text-purple-700':rule.rule_group==='cross_category'}"
+                        x-text="{'selection':'選択','calculation':'計算','warning':'警告','cross_category':'横断'}[rule.rule_group] || rule.rule_group"></span>
+                      <span class="text-gray-400">P:<span x-text="rule.priority"></span></span>
+                    </div>
+                  </div>
+                  <div x-show="rule.conditions_json && rule.conditions_json !== '[]'" class="text-gray-500">
+                    条件: <template x-for="(cond, ci) in (typeof rule.conditions_json === 'string' ? JSON.parse(rule.conditions_json) : rule.conditions_json)" :key="ci">
+                      <span class="inline-block px-1.5 py-0.5 bg-gray-100 rounded mr-1 mb-0.5" x-text="cond.field + ' ' + cond.operator + ' ' + (Array.isArray(cond.value) ? cond.value.join(',') : cond.value)"></span>
+                    </template>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <div class="flex justify-between items-center">
+            <button @click="basisModal.show=false; openEditModal(basisModal.item)" class="px-4 py-2 text-sm text-hm-600 hover:bg-hm-50 rounded-lg transition font-medium"><i class="fas fa-pen-to-square mr-1"></i>この工種を編集</button>
+            <button @click="basisModal.show=false" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">閉じる</button>
           </div>
         </div>
       </div>
@@ -782,7 +938,7 @@ uiRoutes.get('/ui/projects/:id', (c) => {
             <div class="rounded-xl border-2 p-3" :class="idx === 0 ? 'border-hm-300 bg-hm-50' : idx === 1 ? 'border-blue-200 bg-blue-50' : 'border-gray-200 bg-gray-50'">
               <div class="flex items-center gap-2 mb-1">
                 <span class="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white" :class="idx === 0 ? 'bg-hm-500' : idx === 1 ? 'bg-blue-500' : 'bg-gray-400'" x-text="idx + 1"></span>
-                <span class="text-sm font-semibold text-gray-800" x-text="s.category_code"></span>
+                <span class="text-sm font-semibold text-gray-800" x-text="categoryName(s.category_code)"></span>
               </div>
               <div class="text-lg font-bold font-mono" :class="idx === 0 ? 'text-hm-700' : 'text-gray-700'" x-text="fmt.yen(s.final_total_amount)"></div>
               <div class="text-xs text-gray-400" x-text="snapshot?.total_cost ? Math.round(s.final_total_amount / snapshot.total_cost * 100) + '% of total' : ''"></div>
@@ -795,7 +951,7 @@ uiRoutes.get('/ui/projects/:id', (c) => {
         </tr></thead><tbody class="divide-y divide-gray-100">
           <template x-for="s in summaries" :key="s.category_code"><tr class="hover:bg-gray-50 text-sm"
             :class="snapshot?.total_cost && s.final_total_amount / snapshot.total_cost >= 0.20 ? 'bg-amber-50/50' : s.final_total_amount === 0 ? 'opacity-40' : ''">
-            <td class="px-4 py-3"><span class="font-medium text-gray-800" x-text="s.category_code"></span></td>
+            <td class="px-4 py-3"><span class="font-medium text-gray-800" x-text="categoryName(s.category_code)"></span><span class="text-xs text-gray-400 ml-1 font-mono" x-text="s.category_code"></span></td>
             <td class="px-4 py-3 text-right text-gray-500 font-mono" x-text="fmt.yen(s.auto_total_amount)"></td>
             <td class="px-4 py-3 text-right font-mono" :class="s.manual_adjustment_amount ? 'text-orange-600 font-semibold' : 'text-gray-300'" x-text="fmt.yen(s.manual_adjustment_amount || 0)"></td>
             <td class="px-4 py-3 text-right font-mono font-semibold text-gray-800" x-text="fmt.yen(s.final_total_amount)"></td>
@@ -933,7 +1089,7 @@ uiRoutes.get('/ui/projects/:id', (c) => {
           </div>
         </div>
 
-        <!-- Persisted Warnings (with read/resolve) -->
+        <!-- Persisted Warnings (grouped by type) -->
         <div class="bg-white rounded-xl border p-5">
           <div class="flex justify-between items-center mb-3">
             <h3 class="font-semibold"><i class="fas fa-bell mr-1.5 text-yellow-500"></i>警告管理 (<span x-text="aiWarnings?.summary?.open || warnings.filter(w => w.status === 'open').length"></span>)</h3>
@@ -944,39 +1100,52 @@ uiRoutes.get('/ui/projects/:id', (c) => {
             </div>
           </div>
           <div x-show="aiWarningsList.length === 0" class="py-6 text-center text-gray-400 text-sm"><i class="fas fa-check-circle text-green-400 text-2xl mb-2"></i><p>警告はありません</p></div>
-          <div class="space-y-2 max-h-96 overflow-y-auto">
-            <template x-for="w in aiWarningsList" :key="w.id">
-              <div class="p-3 rounded-lg border text-sm flex items-start gap-3"
-                :class="{'bg-red-50 border-red-200':w.severity==='error'&&w.status==='open','bg-yellow-50 border-yellow-200':w.severity==='warning'&&w.status==='open','bg-blue-50 border-blue-200':w.severity==='info'&&w.status==='open','bg-gray-50 border-gray-200':w.status!=='open'}"
-                :style="w.status !== 'open' ? 'opacity: 0.6' : ''">
-                <i :class="fmt.severityIcon(w.severity)" class="mt-0.5"></i>
-                <div class="flex-1 min-w-0">
-                  <div class="font-medium text-gray-800" x-text="w.message"></div>
-                  <div class="text-xs text-gray-500 mt-0.5 flex gap-2 flex-wrap">
-                    <span x-text="w.warning_type"></span><span x-text="w.source"></span>
-                    <span x-show="w.recommendation" class="text-blue-600" x-text="w.recommendation"></span>
-                    <span x-show="!w.is_read" class="text-purple-600 font-medium">●未読</span>
-                    <span x-show="w.status === 'resolved'" class="text-green-600">✓解決済</span>
-                    <span x-show="w.status === 'ignored'" class="text-gray-500">–無視</span></div></div>
-                <div x-show="w.status === 'open'" class="flex gap-1 flex-shrink-0">
-                  <button @click="updateWarning(w.id, 'mark_read')" x-show="!w.is_read" class="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200" title="既読"><i class="fas fa-eye"></i></button>
-                  <button @click="updateWarning(w.id, 'resolve')" class="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200" title="解決"><i class="fas fa-check"></i></button>
-                  <button @click="updateWarning(w.id, 'ignore')" class="px-2 py-1 text-xs bg-gray-100 text-gray-500 rounded hover:bg-gray-200" title="無視"><i class="fas fa-eye-slash"></i></button></div>
-                <div x-show="w.status !== 'open'" class="flex-shrink-0">
-                  <button @click="updateWarning(w.id, 'reopen')" class="px-2 py-1 text-xs bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200" title="再オープン"><i class="fas fa-undo"></i></button></div>
+          <!-- Warning Type Groups -->
+          <div x-show="aiWarningsList.length > 0" class="space-y-4 max-h-[600px] overflow-y-auto">
+            <template x-for="group in warningGroups()" :key="group.type">
+              <div>
+                <div class="flex items-center gap-2 mb-2 sticky top-0 bg-white py-1">
+                  <i :class="group.icon" class="text-sm"></i>
+                  <span class="text-xs font-bold" :class="group.color" x-text="group.label"></span>
+                  <span class="text-xs text-gray-400" x-text="'(' + group.items.length + ')'"></span>
+                </div>
+                <div class="space-y-1.5">
+                  <template x-for="w in group.items" :key="w.id">
+                    <div class="p-3 rounded-lg border text-sm flex items-start gap-3"
+                      :class="{'bg-red-50 border-red-200':w.severity==='error'&&w.status==='open','bg-yellow-50 border-yellow-200':w.severity==='warning'&&w.status==='open','bg-blue-50 border-blue-200':w.severity==='info'&&w.status==='open','bg-gray-50 border-gray-200':w.status!=='open'}"
+                      :style="w.status !== 'open' ? 'opacity: 0.6' : ''">
+                      <i :class="fmt.severityIcon(w.severity)" class="mt-0.5"></i>
+                      <div class="flex-1 min-w-0">
+                        <div class="font-medium text-gray-800" x-text="w.message"></div>
+                        <div class="text-xs text-gray-500 mt-0.5 flex gap-2 flex-wrap">
+                          <span class="px-1.5 py-0.5 rounded bg-gray-100" x-text="warningTypeLabel(w.warning_type)"></span>
+                          <span x-show="w.recommendation" class="text-blue-600" x-text="w.recommendation"></span>
+                          <span x-show="!w.is_read" class="text-purple-600 font-medium">●未読</span>
+                          <span x-show="w.status === 'resolved'" class="text-green-600">✓解決済</span>
+                          <span x-show="w.status === 'ignored'" class="text-gray-500">–無視</span></div></div>
+                      <div x-show="w.status === 'open'" class="flex gap-1 flex-shrink-0">
+                        <button @click="updateWarning(w.id, 'mark_read')" x-show="!w.is_read" class="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200" title="既読"><i class="fas fa-eye"></i></button>
+                        <button @click="updateWarning(w.id, 'resolve')" class="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200" title="解決"><i class="fas fa-check"></i></button>
+                        <button @click="updateWarning(w.id, 'ignore')" class="px-2 py-1 text-xs bg-gray-100 text-gray-500 rounded hover:bg-gray-200" title="無視"><i class="fas fa-eye-slash"></i></button></div>
+                      <div x-show="w.status !== 'open'" class="flex-shrink-0">
+                        <button @click="updateWarning(w.id, 'reopen')" class="px-2 py-1 text-xs bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200" title="再オープン"><i class="fas fa-undo"></i></button></div>
+                    </div>
+                  </template>
+                </div>
               </div>
             </template>
           </div>
         </div>
 
-        <!-- PDF Parse Section -->
+        <!-- Document Import Section -->
         <div class="bg-white rounded-xl border p-5">
-          <h3 class="font-semibold mb-3"><i class="fas fa-file-pdf mr-1.5 text-red-500"></i>帳票読取（PDF/テキスト）</h3>
-          <div class="mb-3"><textarea x-model="parseContent" rows="4" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500" placeholder="帳票のテキスト内容を貼り付けてください..."></textarea></div>
+          <h3 class="font-semibold mb-2"><i class="fas fa-file-import mr-1.5 text-purple-500"></i>書類データ取込</h3>
+          <p class="text-xs text-gray-500 mb-3">業者見積書や仕様書のテキストを貼り付けると、AI が工種・金額を自動抽出します。抽出結果は確認してから反映してください。</p>
+          <div class="mb-3"><textarea x-model="parseContent" rows="4" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500" placeholder="見積書や仕様書のテキストをここに貼り付けてください..."></textarea></div>
           <div class="flex gap-3 items-center">
             <select x-model="parseFormat" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm"><option value="text">テキスト</option><option value="csv">CSV</option></select>
             <button @click="parseDocument()" class="px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium" :disabled="parsing">
-              <span x-show="!parsing"><i class="fas fa-magic mr-1"></i>読取実行</span><span x-show="parsing"><i class="fas fa-spinner fa-spin"></i></span></button>
+              <span x-show="!parsing"><i class="fas fa-magic mr-1"></i>AI抽出</span><span x-show="parsing"><i class="fas fa-spinner fa-spin"></i></span></button>
             <span x-show="parseResult" class="text-xs text-gray-500">
               <span x-text="parseResult?.items_extracted || 0"></span> 件抽出 / 信頼度: <span :class="fmt.confidenceColor(parseResult?.extraction_quality?.confidence_level)" x-text="fmt.confidenceLabel(parseResult?.extraction_quality?.confidence_level)"></span></span>
           </div>
@@ -1026,7 +1195,7 @@ uiRoutes.get('/ui/projects/:id', (c) => {
     function projectDetail(projectId) {
       return {
         project: null, snapshot: null, items: [], summaries: [], diffs: [], diffMeta: null,
-        risk: null, gap: null, warnings: [], salesEstimates: [], lineups: [],
+        risk: null, gap: null, warnings: [], salesEstimates: [], lineups: [], categories: [],
         aiStatus: null, aiCheckResult: null, aiWarningsList: [], aiWarnings: null,
         loading: true, enqueueing: false, salesSaving: false, aiChecking: false, diffsLoading: false, parsing: false,
         activeTab: 'edit', showRegenModal: false, regenMode: 'regenerate_preserve_reviewed',
@@ -1035,6 +1204,7 @@ uiRoutes.get('/ui/projects/:id', (c) => {
         parseContent: '', parseFormat: 'text', parseResult: null,
         editModal: { show:false, item:null, saving:false, error:'',
           form: { manual_quantity:null, manual_unit_price:null, manual_amount:null, override_reason_category:'', override_reason:'', note:'', review_status:'', vendor_name:'' } },
+        basisModal: { show:false, item:null, rules:[] },
         manualAdjust: { show:false, diff:null, amount:0 },
         salesForm: { estimate_type:'rough', total_sale_price:0, standard_sale:0, solar_sale:0 },
         tabs: [
@@ -1048,7 +1218,13 @@ uiRoutes.get('/ui/projects/:id', (c) => {
         ],
         statusClass(s) { return {'draft':'bg-gray-100 text-gray-600','calculating':'bg-indigo-100 text-indigo-700','in_progress':'bg-blue-100 text-blue-700','needs_review':'bg-yellow-100 text-yellow-700','reviewed':'bg-green-100 text-green-700','archived':'bg-purple-100 text-purple-600'}[s] || 'bg-gray-100 text-gray-600'; },
         lineupName(code) { if (!code) return '未定'; const lu = this.lineups.find(l=>l.code===code); return lu ? lu.name : code; },
-        async init() { const luRes = await api.get('/master/lineups'); if(luRes.success) this.lineups = luRes.data || []; await this.loadAll(); this.loading = false; },
+        categoryName(code) { if (!code) return code; const cat = this.categories.find(c=>c.category_code===code); return cat ? cat.category_name : code; },
+        async init() {
+          const [luRes, catRes] = await Promise.all([api.get('/master/lineups'), api.get('/master/categories')]);
+          if(luRes.success) this.lineups = luRes.data || [];
+          if(catRes.success) this.categories = catRes.data || [];
+          await this.loadAll(); this.loading = false;
+        },
         async loadAll() {
           const pRes = await api.get('/projects/' + projectId);
           if (pRes.success) this.project = pRes.data;
@@ -1108,6 +1284,34 @@ uiRoutes.get('/ui/projects/:id', (c) => {
         },
         filteredItems() { let r = this.items; if(this.itemSearch){const q=this.itemSearch.toLowerCase();r=r.filter(i=>(i.item_name||'').toLowerCase().includes(q)||(i.category_code||'').toLowerCase().includes(q));} if(this.itemReviewFilter){r=r.filter(i=>i.review_status===this.itemReviewFilter);} return r; },
         openEditModal(item) { this.editModal.item = item; this.editModal.form = { manual_quantity:item.manual_quantity, manual_unit_price:item.manual_unit_price, manual_amount:item.manual_amount, override_reason_category:item.override_reason_category||'', override_reason:item.override_reason||'', note:item.note||'', review_status:'', vendor_name:item.vendor_name||'' }; this.editModal.error=''; this.editModal.show=true; },
+        calcTypeLabel(t) { return {'fixed_amount':'固定額','per_tsubo':'坪単価','per_m2':'m\u00B2単価','per_meter':'m単価','per_piece':'個数','range_lookup':'坪数帯テーブル','lineup_fixed':'ラインナップ固定','rule_lookup':'ルール参照','manual_quote':'手動見積','product_selection':'製品選択','package_with_delta':'パッケージ差額','threshold_surcharge':'閾値加算'}[t] || t; },
+        calcTypeColor(t) { return {'fixed_amount':'bg-blue-100 text-blue-700','per_tsubo':'bg-green-100 text-green-700','per_m2':'bg-green-100 text-green-700','per_meter':'bg-green-100 text-green-700','per_piece':'bg-green-100 text-green-700','range_lookup':'bg-purple-100 text-purple-700','lineup_fixed':'bg-indigo-100 text-indigo-700','rule_lookup':'bg-amber-100 text-amber-700','manual_quote':'bg-orange-100 text-orange-700','product_selection':'bg-cyan-100 text-cyan-700','package_with_delta':'bg-teal-100 text-teal-700','threshold_surcharge':'bg-red-100 text-red-700'}[t] || 'bg-gray-100 text-gray-600'; },
+        warningTypeLabel(t) { return {'missing_input':'入力不足','condition_unmet':'条件未達','threshold_exceeded':'閾値超過','area_surcharge':'面積加算','manual_required':'手動確認必須','cross_category':'横断チェック','sales_estimate_gap':'売価関連','master_price_expired':'単価期限切れ','version_mismatch':'バージョン不一致'}[t] || t; },
+        warningGroups() {
+          const groupDef = [
+            {type:'zero_amount',label:'金額が0円の工種',icon:'fas fa-yen-sign text-red-500',color:'text-red-700',filter:w=>w.warning_type==='threshold_exceeded'&&(w.message||'').includes('0')},
+            {type:'manual',label:'手動確認が必要',icon:'fas fa-hand-paper text-orange-500',color:'text-orange-700',filter:w=>w.warning_type==='manual_required'},
+            {type:'missing',label:'入力不足',icon:'fas fa-exclamation-triangle text-amber-500',color:'text-amber-700',filter:w=>w.warning_type==='missing_input'},
+            {type:'sales',label:'売価関連',icon:'fas fa-yen-sign text-blue-500',color:'text-blue-700',filter:w=>w.warning_type==='sales_estimate_gap'},
+            {type:'condition',label:'条件チェック',icon:'fas fa-clipboard-check text-purple-500',color:'text-purple-700',filter:w=>['condition_unmet','cross_category','area_surcharge'].includes(w.warning_type)},
+            {type:'other',label:'その他',icon:'fas fa-info-circle text-gray-500',color:'text-gray-700',filter:w=>true},
+          ];
+          const used = new Set();
+          return groupDef.map(g => {
+            const items = this.aiWarningsList.filter(w => !used.has(w.id) && g.filter(w));
+            items.forEach(w => used.add(w.id));
+            return {...g, items};
+          }).filter(g => g.items.length > 0);
+        },
+        async openBasisModal(item) {
+          this.basisModal.item = item; this.basisModal.rules = []; this.basisModal.show = true;
+          if (item.master_item_id) {
+            try {
+              const rRes = await api.get('/master/rules?item_id=' + encodeURIComponent(item.master_item_id));
+              if (rRes.success) this.basisModal.rules = (rRes.data || []).filter(r => r.is_active);
+            } catch(e) {}
+          }
+        },
         async saveItemEdit() {
           this.editModal.saving=true; this.editModal.error=''; const body={}; const f=this.editModal.form;
           if(f.manual_quantity!==this.editModal.item.manual_quantity) body.manual_quantity=f.manual_quantity;
