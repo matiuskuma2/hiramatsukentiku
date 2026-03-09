@@ -2,9 +2,9 @@
 
 ## Project Overview
 - **Name**: hiramatsu-cost
-- **Version**: 0.9.1
+- **Version**: 0.10.0
 - **Goal**: 平松建築の注文住宅 概算原価を自動算出し、売価ギャップ分析・リスク可視化を行う原価管理システム
-- **Phase**: Step 9 完了 (管理画面・認証・使い方ガイド・権限制御)
+- **Phase**: Step 10 完了 (ラインナップマスタ管理・単価マスタ入力改善)
 - **Stack**: Hono + TypeScript + Cloudflare D1 + TailwindCSS + Alpine.js
 
 ## URLs
@@ -13,7 +13,7 @@
   - `/ui/login` — ログイン画面
   - `/ui/projects` — 案件一覧
   - `/ui/projects/:id` — 案件詳細 (8タブ)
-  - `/ui/admin` — 管理画面 (admin/managerのみ)
+  - `/ui/admin` — 管理画面 (admin/managerのみ, 4タブ: ユーザー・単価マスタ・ラインナップ・システム設定)
   - `/ui/manual` — 使い方ガイド (13セクション)
 - **API Health**: `/api/health`
 
@@ -31,7 +31,8 @@
 | Step 6 | AI Production Hardening: graceful degradation, confidence/severity rules, warning CRUD, PDF UI | ✅ |
 | Step 7 | OpenAI API Key Integration + M7 統合テスト (AI ai_enhanced モード確認) | ✅ |
 | Step 8 | CR-03修正 (settings PATCH) + CR-05実装 (project edit tab) + デプロイ準備文書 + M8 E2E | ✅ |
-| **Step 9** | **管理画面・認証・使い方ガイド・権限制御** | ✅ **NEW** |
+| **Step 9** | **管理画面・認証・使い方ガイド・権限制御** | ✅ |
+| **Step 10** | **ラインナップマスタ管理・単価マスタ入力改善** | ✅ **NEW** |
 
 ## Step 9 で実装した内容
 
@@ -86,6 +87,39 @@
 - 「管理」リンクは admin/manager のみ表示
 - 案件一覧に担当者名を表示
 
+## Step 10 で実装した内容
+
+### 1. ラインナップマスタ管理
+- **lineups マスタテーブル**: code, name, short_name, description, is_custom, sort_order, is_active
+- **初期データ**: SHIN, RIN, MOKU_OOYANE, MOKU_HIRAYA, MOKU_ROKU, CUSTOM（オーダーメイド）
+- **管理画面**: ラインナップ管理タブ追加（一覧・追加・編集・有効化/無効化）
+- **API**: GET /api/master/lineups, POST/PATCH /api/master/lineups/:code
+
+### 2. 未定（null）とオーダーメイド（CUSTOM）の導入
+- **未定 (null)**: 案件作成時のデフォルト。ラインナップ依存の工種は自動計算されず、手動入力にフォールバック
+- **オーダーメイド (CUSTOM)**: 既製シリーズに当てはまらない自由設計案件。全ラインナップ依存工種が手動確認必要
+- **projects.lineup**: NOT NULL → nullable に変更
+
+### 3. リスクセンター警告の強化
+- `lineup_undecided`: ラインナップ未定時の警告（severity: warning）
+- `lineup_custom`: オーダーメイド案件のインフォメーション（severity: info）
+- `lineup_dependent_manual_items`: ラインナップ依存工種の手動入力待ち件数
+
+### 4. 原価計算エンジンの改善
+- lineup=null/CUSTOM時、ラインナップ固定（lineup_fixed）やルール参照（rule_lookup）の工種に手動入力警告を自動付与
+- 既存5ラインナップの計算ロジックに影響なし
+
+### 5. UI改善
+- **案件作成モーダル**: 動的ラインナップドロップダウン（APIから取得）、未定/CUSTOM選択時の注意メッセージ
+- **案件情報タブ**: 動的ドロップダウン + 未定/CUSTOM時の視覚的警告
+- **案件一覧**: ラインナップ名を日本語で表示、未定案件にバッジ表示
+- **使い方ガイド**: ラインナップの説明を更新（未定・オーダーメイドの説明追加）
+
+### 6. 単価マスタの入力改善（Step 9補完）
+- 新規工種追加機能の実装（POST /api/master/items）
+- 編集モーダルのフォーム修正（null値処理改善）
+- カテゴリ名の日本語表示
+
 ## API一覧
 
 ### 認証 (NEW)
@@ -115,7 +149,11 @@
 |--------|------|------|
 | GET | `/api/master/categories` | カテゴリ一覧 (10件) |
 | GET | `/api/master/items` | 工種一覧 (58件, ?category, ?active_only) |
+| POST | `/api/master/items` | 新規工種追加 (admin) |
 | PATCH | `/api/master/items/:id` | 工種更新 (admin) |
+| GET | `/api/master/lineups` | ラインナップ一覧 (?active_only) |
+| POST | `/api/master/lineups` | ラインナップ追加 (admin) |
+| PATCH | `/api/master/lineups/:code` | ラインナップ更新 (admin) |
 | GET | `/api/master/system-settings` | システム設定一覧 |
 | PATCH | `/api/master/system-settings/:key` | システム設定更新 |
 
@@ -164,9 +202,9 @@
 7. **AI・警告** — AIステータス・条件チェック・警告CRUD・PDF読取
 
 ## Data Architecture
-- **Database**: Cloudflare D1 (SQLite) — 23テーブル
-- **Migrations**: 6ファイル (0001〜0006)
-- **Seed**: 10カテゴリ / 58工種 / 47ルール / 9システム設定
+- **Database**: Cloudflare D1 (SQLite) — 24テーブル
+- **Migrations**: 7ファイル (0001〜0007)
+- **Seed**: 10カテゴリ / 58工種 / 47ルール / 9システム設定 / 6ラインナップ
 - **Auth**: Cookie session + CF Access + dev email bypass
 - **Enums**: 37 Zod enum definitions
 
@@ -199,18 +237,20 @@ migrations/
 ├── 0003_warnings_source_status.sql
 ├── 0004_diff_resolution_columns.sql
 ├── 0005_ai_warnings_read_status.sql
-└── 0006_auth_and_admin.sql     # NEW
+└── 0006_auth_and_admin.sql
+└── 0007_lineups_master_and_nullable_project_lineup.sql  # NEW
 ```
 
 ## Deployment
 - **Platform**: Cloudflare Pages (local dev with wrangler)
 - **Status**: ✅ Active (Sandbox)
-- **Last Updated**: 2026-03-08
-- **Version**: 0.9.1
+- **Last Updated**: 2026-03-09
+- **Version**: 0.10.0
 
 ## Next Steps
 - [ ] Cloudflare Pages 本番デプロイ実行
 - [ ] AI Phase 2: GPT-4o直接接続強化
+- [ ] lineup_packages / lineup_option_groups テーブルの活用（Phase 2 予約）
 - [ ] CR-06: バッチレビュー
 - [ ] CR-07: CSVエクスポート
 - [ ] Cloudflare Access 認証設定
