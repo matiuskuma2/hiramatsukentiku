@@ -160,11 +160,24 @@ uiRoutes.get('/ui/projects', (c) => {
           <h1 class="text-2xl font-bold text-gray-800"><i class="fas fa-folder-open mr-2 text-hm-600"></i>案件一覧</h1>
           <p class="text-sm text-gray-500 mt-1">見積案件の管理・作成</p>
         </div>
-        <button @click="showCreate = true" class="bg-hm-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-hm-700 transition shadow-sm">
+        <button @click="showCreate = true" x-show="!authError" class="bg-hm-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-hm-700 transition shadow-sm">
           <i class="fas fa-plus mr-1.5"></i>新規案件
         </button>
       </div>
-      <div class="flex gap-2 mb-5 flex-wrap">
+      <!-- Auth Error Banner -->
+      <div x-show="authError && !loading" x-cloak class="bg-amber-50 border border-amber-300 rounded-xl p-6 mb-6">
+        <div class="flex items-start gap-4">
+          <div class="bg-amber-100 rounded-full p-3"><i class="fas fa-lock text-amber-600 text-xl"></i></div>
+          <div>
+            <h3 class="font-semibold text-amber-800 text-lg mb-1">ログインが必要です</h3>
+            <p class="text-sm text-amber-700 mb-3">案件データを表示するにはログインしてください。アカウントが未登録の場合は管理者にお問い合わせください。</p>
+            <a href="/ui/login" class="inline-flex items-center gap-2 bg-hm-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-hm-700 transition shadow-sm">
+              <i class="fas fa-sign-in-alt"></i>ログイン画面へ
+            </a>
+          </div>
+        </div>
+      </div>
+      <div class="flex gap-2 mb-5 flex-wrap" x-show="!authError">
         <template x-for="s in statusFilters" :key="s.value">
           <button @click="filter = s.value; load()"
             :class="filter === s.value ? 'bg-hm-600 text-white shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-50 border'"
@@ -257,7 +270,7 @@ uiRoutes.get('/ui/projects', (c) => {
     <script>
     function projectList() {
       return {
-        projects: [], meta: { total: 0 }, filter: '', showCreate: false, creating: false, createError: '', loading: true,
+        projects: [], meta: { total: 0 }, filter: '', showCreate: false, creating: false, createError: '', loading: true, authError: false,
         statusFilters: [
           {value:'', label:'全件', icon:'fas fa-th'},{value:'draft', label:'下書き', icon:'fas fa-pencil-alt'},
           {value:'in_progress', label:'進行中', icon:'fas fa-play-circle'},{value:'needs_review', label:'要レビュー', icon:'fas fa-exclamation-circle'},
@@ -268,7 +281,7 @@ uiRoutes.get('/ui/projects', (c) => {
         statusClass(s) { return {'draft':'bg-gray-100 text-gray-600','calculating':'bg-indigo-100 text-indigo-700','in_progress':'bg-blue-100 text-blue-700','needs_review':'bg-yellow-100 text-yellow-700','reviewed':'bg-green-100 text-green-700','archived':'bg-purple-100 text-purple-600'}[s] || 'bg-gray-100 text-gray-600'; },
         lineupName(code) { if (!code) return '未定'; const lu = this.lineups.find(l=>l.code===code); return lu ? lu.name : code; },
         async loadLineups() { const r = await api.get('/master/lineups'); if(r.success) this.lineups = r.data || []; },
-        async load() { this.loading = true; await this.loadLineups(); const q = this.filter ? '?status=' + this.filter : ''; const res = await api.get('/projects' + q); if (res.success) { this.projects = res.data; this.meta = res.meta || { total: res.data?.length || 0 }; } this.loading = false; },
+        async load() { this.loading = true; await this.loadLineups(); const q = this.filter ? '?status=' + this.filter : ''; const res = await api.get('/projects' + q); if (res.success) { this.projects = res.data; this.meta = res.meta || { total: res.data?.length || 0 }; this.authError = false; } else if (res.error && (res.error.includes('認証') || res.error.includes('auth') || res.error.includes('401'))) { this.authError = true; } else { const authCheck = await fetch('/api/auth/me'); if (authCheck.status === 401) this.authError = true; } this.loading = false; },
         async create() {
           this.creating = true; this.createError = '';
           const body = { ...this.form };
@@ -299,6 +312,19 @@ uiRoutes.get('/ui/projects/:id', (c) => {
       </div>
       <!-- Loading -->
       <div x-show="loading" class="space-y-4"><div class="bg-white rounded-xl border p-5"><div class="skeleton h-6 w-48 rounded mb-2"></div><div class="skeleton h-4 w-32 rounded"></div></div></div>
+      <!-- Auth Error -->
+      <div x-show="authError && !loading" x-cloak class="bg-amber-50 border border-amber-300 rounded-xl p-6">
+        <div class="flex items-start gap-4">
+          <div class="bg-amber-100 rounded-full p-3"><i class="fas fa-lock text-amber-600 text-xl"></i></div>
+          <div>
+            <h3 class="font-semibold text-amber-800 text-lg mb-1">ログインが必要です</h3>
+            <p class="text-sm text-amber-700 mb-3">案件データを表示するにはログインしてください。</p>
+            <a href="/ui/login" class="inline-flex items-center gap-2 bg-hm-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-hm-700 transition shadow-sm">
+              <i class="fas fa-sign-in-alt"></i>ログイン画面へ
+            </a>
+          </div>
+        </div>
+      </div>
       <!-- Project Header -->
       <div x-show="!loading && project" class="bg-white rounded-xl shadow-sm border p-5 mb-5">
         <div class="flex justify-between items-start">
@@ -1197,7 +1223,7 @@ uiRoutes.get('/ui/projects/:id', (c) => {
         project: null, snapshot: null, items: [], summaries: [], diffs: [], diffMeta: null,
         risk: null, gap: null, warnings: [], salesEstimates: [], lineups: [], categories: [],
         aiStatus: null, aiCheckResult: null, aiWarningsList: [], aiWarnings: null,
-        loading: true, enqueueing: false, salesSaving: false, aiChecking: false, diffsLoading: false, parsing: false,
+        loading: true, authError: false, enqueueing: false, salesSaving: false, aiChecking: false, diffsLoading: false, parsing: false,
         activeTab: 'edit', showRegenModal: false, regenMode: 'regenerate_preserve_reviewed',
         toast: { show: false, message: '', type: 'info' },
         itemSearch: '', itemReviewFilter: '', diffFilter: '', warningFilter: 'open',
@@ -1220,6 +1246,8 @@ uiRoutes.get('/ui/projects/:id', (c) => {
         lineupName(code) { if (!code) return '未定'; const lu = this.lineups.find(l=>l.code===code); return lu ? lu.name : code; },
         categoryName(code) { if (!code) return code; const cat = this.categories.find(c=>c.category_code===code); return cat ? cat.category_name : code; },
         async init() {
+          const authCheck = await fetch('/api/auth/me');
+          if (authCheck.status === 401) { this.authError = true; this.loading = false; return; }
           const [luRes, catRes] = await Promise.all([api.get('/master/lineups'), api.get('/master/categories')]);
           if(luRes.success) this.lineups = luRes.data || [];
           if(catRes.success) this.categories = catRes.data || [];
