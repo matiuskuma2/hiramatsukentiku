@@ -216,6 +216,139 @@ adminRoutes.post('/auth/change-password', resolveUser, async (c) => {
 
 
 // ==========================================================
+// Helper: Send email via SendGrid
+// ==========================================================
+async function sendEmail(apiKey: string, fromEmail: string, to: string, subject: string, html: string): Promise<boolean> {
+  try {
+    const resp = await fetch('https://api.sendgrid.com/v3/mail/send', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        personalizations: [{ to: [{ email: to }] }],
+        from: { email: fromEmail, name: '平松建築 原価管理システム' },
+        subject,
+        content: [{ type: 'text/html', value: html }],
+      }),
+    });
+    return resp.status >= 200 && resp.status < 300;
+  } catch (e) {
+    console.error('SendGrid error:', e);
+    return false;
+  }
+}
+
+// ==========================================================
+// POST /api/auth/reset-request
+// Public endpoint - send password reset email
+// Body: { email }
+// ==========================================================
+adminRoutes.post('/auth/reset-request', async (c) => {
+  const db = c.env.DB;
+  const sendgridKey = c.env.SENDGRID_API_KEY;
+  const fromEmail = c.env.SENDGRID_FROM_EMAIL || 'noreply@hiramatsu-cost.pages.dev';
+
+  if (!sendgridKey) {
+    return c.json({ success: false, error: 'メール送信が設定されていません。管理者にお問い合わせください。' }, 500);
+  }
+
+  let body: any;
+  try { body = await c.req.json(); } catch { return c.json({ success: false, error: 'Invalid JSON' }, 400); }
+
+  const { email } = body || {};
+  if (!email) {
+    return c.json({ success: false, error: 'メールアドレスを入力してください' }, 400);
+  }
+
+  // Always return success to prevent email enumeration
+  const user = await db.prepare(
+    "SELECT id, email, name FROM app_users WHERE email = ? AND status = 'active'"
+  ).bind(email).first() as any;
+
+  if (user) {
+    // Generate reset token (6-digit code for simplicity)
+    const token = String(Math.floor(100000 + Math.random() * 900000));
+    const expires = new Date(Date.now() + 30 * 60 * 1000).toISOString(); // 30 minutes
+
+    await db.prepare(
+      "UPDATE app_users SET reset_token = ?, reset_token_expires = ?, updated_at = datetime('now') WHERE id = ?"
+    ).bind(token, expires, user.id).run();
+
+    // Send email
+    const baseUrl = c.req.url.replace(/\/api\/.*$/, '');
+    const html = `
+      <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:20px">
+        <div style="background:#2d5016;color:white;padding:16px 24px;border-radius:8px 8px 0 0;text-align:center">
+          <h2 style="margin:0;font-size:18px">平松建築 原価管理システム</h2>
+        </div>
+        <div style="background:#f9f9f9;padding:24px;border:1px solid #e5e5e5;border-top:0;border-radius:0 0 8px 8px">
+          <p style="margin:0 0 16px">${user.name || ''} 様</p>
+          <p style="margin:0 0 16px">パスワードリセットのリクエストを受け付けました。</p>
+          <p style="margin:0 0 8px">以下のコードをリセット画面で入力してください:</p>
+          <div style="background:white;border:2px solid #2d5016;border-radius:8px;padding:16px;text-align:center;margin:16px 0">
+            <span style="font-size:32px;font-weight:bold;letter-spacing:8px;color:#2d5016">${token}</span>
+          </div>
+          <p style="margin:16px 0 0;font-size:13px;color:#666">
+            このコードは30分間有効です。<br>
+            心当たりがない場合はこのメールを無視してください。
+          </p>
+        </div>
+      </div>
+    `;
+
+    await sendEmail(sendgridKey, fromEmail, email, 'パスワードリセット - 平松建築 原価管理', html);
+  }
+
+  // Always return success (prevent email enumeration)
+  return c.json({ success: true, message: '登録されたメールアドレスにリセットコードを送信しました' });
+});
+
+// ==========================================================
+// POST /api/auth/reset-confirm
+// Public endpoint - verify token and set new password
+// Body: { email, token, new_password }
+// ==========================================================
+adminRoutes.post('/auth/reset-confirm', async (c) => {
+  const db = c.env.DB;
+
+  let body: any;
+  try { body = await c.req.json(); } catch { return c.json({ success: false, error: 'Invalid JSON' }, 400); }
+
+  const { email, token, new_password } = body || {};
+  if (!email || !token || !new_password) {
+    return c.json({ success: false, error: 'メールアドレス、リセットコード、新しいパスワードを入力してください' }, 400);
+  }
+
+  if (new_password.length < 4) {
+    return c.json({ success: false, error: 'パスワードは4文字以上で入力してください' }, 400);
+  }
+
+  const user = await db.prepare(
+    "SELECT id, reset_token, reset_token_expires FROM app_users WHERE email = ? AND status = 'active'"
+  ).bind(email).first() as any;
+
+  if (!user || user.reset_token !== token) {
+    return c.json({ success: false, error: 'リセットコードが正しくありません' }, 400);
+  }
+
+  // Check expiry
+  if (user.reset_token_expires && new Date(user.reset_token_expires) < new Date()) {
+    return c.json({ success: false, error: 'リセットコードの有効期限が切れています。再度リクエストしてください。' }, 400);
+  }
+
+  // Set new password and clear token
+  const newHash = await hashPassword(new_password);
+  await db.prepare(
+    "UPDATE app_users SET password_hash = ?, reset_token = NULL, reset_token_expires = NULL, updated_at = datetime('now') WHERE id = ?"
+  ).bind(newHash, user.id).run();
+
+  return c.json({ success: true, message: 'パスワードを変更しました。新しいパスワードでログインしてください。' });
+});
+
+
+// ==========================================================
 // Admin-only routes below
 // ==========================================================
 

@@ -6,6 +6,8 @@ export type Bindings = {
   DB: D1Database;
   DEV_USER_EMAIL?: string;
   OPENAI_API_KEY?: string;
+  SENDGRID_API_KEY?: string;
+  SENDGRID_FROM_EMAIL?: string;
   SNAPSHOT_QUEUE?: any; // Queue binding (optional)
 };
 

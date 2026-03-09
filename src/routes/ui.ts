@@ -794,6 +794,24 @@ uiRoutes.get('/ui/projects/:id', (c) => {
               <i class="fas fa-info-circle mr-0.5"></i>固定金額: <span class="font-mono" x-text="fmt.yen(basisModal.item?.auto_fixed_amount)"></span></div>
           </div>
 
+          <!-- Calculation Formula (NEW - highlighted) -->
+          <div x-data="{get bf(){return $data.buildFormula($data.basisModal.item)}}" class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 mb-4">
+            <h3 class="text-sm font-semibold text-blue-800 mb-3"><i class="fas fa-function mr-1.5 text-blue-600"></i>計算式</h3>
+            <div x-show="bf?.formula" class="bg-white rounded-lg p-3 mb-3 text-center border border-blue-100">
+              <div class="text-lg font-mono font-bold text-gray-800" x-text="bf?.formula"></div>
+            </div>
+            <div x-show="bf?.inputs?.length > 0" class="space-y-1.5">
+              <div class="text-xs font-medium text-blue-700 mb-1"><i class="fas fa-database mr-1"></i>使用した入力値</div>
+              <template x-for="inp in (bf?.inputs||[])" :key="inp.label">
+                <div class="flex items-center gap-2 text-xs bg-white rounded px-2.5 py-1.5 border border-blue-100">
+                  <span class="text-gray-500 w-24 flex-shrink-0" x-text="inp.label"></span>
+                  <span class="font-mono font-semibold text-gray-800" x-text="inp.value"></span>
+                  <span class="ml-auto text-blue-400 text-[10px]" x-text="'← ' + inp.source"></span>
+                </div>
+              </template>
+            </div>
+          </div>
+
           <!-- Calculation Logic -->
           <div class="bg-white border rounded-xl p-4 mb-4">
             <h3 class="text-sm font-semibold text-gray-700 mb-3"><i class="fas fa-cogs mr-1.5 text-gray-500"></i>計算ロジック</h3>
@@ -865,6 +883,21 @@ uiRoutes.get('/ui/projects/:id', (c) => {
                   </div>
                 </div>
               </template>
+            </div>
+          </div>
+
+          <!-- Quick Review Status -->
+          <div class="bg-gray-50 border rounded-xl p-4 mb-4">
+            <h3 class="text-sm font-semibold text-gray-700 mb-3"><i class="fas fa-clipboard-check mr-1.5 text-teal-500"></i>レビューステータス</h3>
+            <div class="flex items-center gap-2">
+              <span class="text-xs px-2 py-1 rounded-full font-medium mr-2"
+                :class="{'bg-green-100 text-green-700':basisModal.item?.review_status==='confirmed','bg-gray-200 text-gray-600':!basisModal.item?.review_status||basisModal.item?.review_status==='pending','bg-yellow-100 text-yellow-700':basisModal.item?.review_status==='needs_review','bg-red-100 text-red-700':basisModal.item?.review_status==='flagged'}"
+                x-text="fmt.reviewStatus(basisModal.item?.review_status || 'pending')"></span>
+              <span class="text-xs text-gray-400 mr-1">→</span>
+              <button @click="quickReview(basisModal.item,'confirmed')" :disabled="basisModal.reviewSaving" class="px-2.5 py-1 text-xs rounded-lg font-medium transition" :class="basisModal.item?.review_status==='confirmed' ? 'bg-green-200 text-green-800 ring-2 ring-green-400' : 'bg-green-50 text-green-700 hover:bg-green-100'"><i class="fas fa-check mr-0.5"></i>OK</button>
+              <button @click="quickReview(basisModal.item,'needs_review')" :disabled="basisModal.reviewSaving" class="px-2.5 py-1 text-xs rounded-lg font-medium transition" :class="basisModal.item?.review_status==='needs_review' ? 'bg-yellow-200 text-yellow-800 ring-2 ring-yellow-400' : 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100'"><i class="fas fa-pen mr-0.5"></i>要修正</button>
+              <button @click="quickReview(basisModal.item,'flagged')" :disabled="basisModal.reviewSaving" class="px-2.5 py-1 text-xs rounded-lg font-medium transition" :class="basisModal.item?.review_status==='flagged' ? 'bg-red-200 text-red-800 ring-2 ring-red-400' : 'bg-red-50 text-red-700 hover:bg-red-100'"><i class="fas fa-flag mr-0.5"></i>ルール追加要</button>
+              <span x-show="basisModal.reviewSaving" class="text-xs text-gray-400"><i class="fas fa-spinner fa-spin"></i></span>
             </div>
           </div>
 
@@ -1064,7 +1097,131 @@ uiRoutes.get('/ui/projects/:id', (c) => {
         </div><!-- /x-show snapshot -->
       </div>
 
-      <!-- TAB 6: AI & Warnings (Production Hardened) -->
+      <!-- TAB 7: Review Checklist (レビューチェックシート) -->
+      <div x-show="activeTab === 'review'" class="fade-in space-y-5">
+        <div class="bg-gray-50 border-b border-gray-200 rounded-t-lg px-4 py-2.5 mb-4 flex items-center gap-2">
+          <i class="fas fa-info-circle text-teal-500 text-xs"></i>
+          <span class="text-xs text-gray-600">カテゴリ別に工種のレビュー状況を確認し、一括でステータスを変更できます。実案件チェックに使用してください。</span>
+        </div>
+
+        <!-- Review Progress Summary -->
+        <div x-data="{get rs(){return $data.reviewStats()}}" class="space-y-5">
+          <div class="grid grid-cols-2 md:grid-cols-6 gap-3">
+            <div class="bg-white rounded-xl border p-3 text-center">
+              <div class="text-2xl font-bold text-gray-800" x-text="rs.stats.total"></div>
+              <div class="text-xs text-gray-500">全工種</div>
+            </div>
+            <div class="bg-green-50 rounded-xl border border-green-200 p-3 text-center">
+              <div class="text-2xl font-bold text-green-700" x-text="rs.stats.confirmed"></div>
+              <div class="text-xs text-green-600">確認済</div>
+            </div>
+            <div class="bg-gray-50 rounded-xl border p-3 text-center">
+              <div class="text-2xl font-bold text-gray-600" x-text="rs.stats.pending"></div>
+              <div class="text-xs text-gray-500">未確認</div>
+            </div>
+            <div class="bg-yellow-50 rounded-xl border border-yellow-200 p-3 text-center">
+              <div class="text-2xl font-bold text-yellow-700" x-text="rs.stats.needs_review"></div>
+              <div class="text-xs text-yellow-600">要修正</div>
+            </div>
+            <div class="bg-red-50 rounded-xl border border-red-200 p-3 text-center">
+              <div class="text-2xl font-bold text-red-700" x-text="rs.stats.flagged"></div>
+              <div class="text-xs text-red-600">ルール追加要</div>
+            </div>
+            <div class="bg-orange-50 rounded-xl border border-orange-200 p-3 text-center">
+              <div class="text-2xl font-bold text-orange-700" x-text="rs.stats.zero_amount"></div>
+              <div class="text-xs text-orange-600">金額0円</div>
+            </div>
+          </div>
+
+          <!-- Progress Bar -->
+          <div class="bg-white rounded-xl border p-4">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-sm font-semibold text-gray-700">レビュー進捗</span>
+              <span class="text-sm font-bold" :class="rs.stats.progress >= 100 ? 'text-green-600' : rs.stats.progress >= 50 ? 'text-blue-600' : 'text-gray-600'" x-text="rs.stats.progress + '%'"></span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+              <div class="h-3 rounded-full bar-animate transition-all duration-500"
+                :class="rs.stats.progress >= 100 ? 'bg-green-500' : rs.stats.progress >= 50 ? 'bg-blue-500' : 'bg-gray-400'"
+                :style="'width:'+rs.stats.progress+'%'"></div>
+            </div>
+            <div class="flex justify-between mt-1.5 text-[10px] text-gray-400">
+              <span>0%</span>
+              <span x-show="rs.stats.progress >= 100" class="text-green-600 font-medium"><i class="fas fa-check-circle mr-0.5"></i>全件レビュー完了!</span>
+              <span>100%</span>
+            </div>
+          </div>
+
+          <!-- Filter -->
+          <div class="flex items-center gap-3">
+            <select x-model="reviewTab.categoryFilter" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm">
+              <option value="">全カテゴリ</option>
+              <template x-for="cat in rs.categories" :key="cat.code">
+                <option :value="cat.code" x-text="cat.name + ' (' + cat.total + ')'"></option>
+              </template>
+            </select>
+          </div>
+
+          <!-- Category-wise Checklist -->
+          <div class="space-y-4">
+            <template x-for="cat in reviewFilteredItems()" :key="cat.code">
+              <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+                <div class="flex items-center justify-between px-4 py-3 bg-gray-50 border-b">
+                  <div class="flex items-center gap-3">
+                    <span class="font-semibold text-gray-800 text-sm" x-text="cat.name"></span>
+                    <span class="text-xs text-gray-400" x-text="cat.total + '件'"></span>
+                    <span class="text-xs font-mono text-gray-500" x-text="fmt.yen(cat.totalAmount)"></span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 font-medium" x-text="cat.confirmed + '/' + cat.total + ' 確認済'"></span>
+                    <div class="flex gap-1">
+                      <button @click="batchReview(cat.items,'confirmed')" class="px-2 py-0.5 text-[10px] bg-green-50 text-green-700 hover:bg-green-100 rounded font-medium transition" title="一括確認"><i class="fas fa-check-double mr-0.5"></i>全てOK</button>
+                      <button @click="batchReview(cat.items,'pending')" class="px-2 py-0.5 text-[10px] bg-gray-100 text-gray-600 hover:bg-gray-200 rounded font-medium transition" title="一括リセット"><i class="fas fa-undo mr-0.5"></i>リセット</button>
+                    </div>
+                  </div>
+                </div>
+                <table class="min-w-full divide-y divide-gray-100">
+                  <tbody class="divide-y divide-gray-50">
+                    <template x-for="item in cat.items" :key="item.id">
+                      <tr class="hover:bg-gray-50 text-sm" :class="item.final_amount === 0 ? 'opacity-50' : ''">
+                        <td class="px-4 py-2 w-1/3">
+                          <div class="font-medium text-gray-800 text-xs" x-text="item.item_name"></div>
+                          <div class="text-[10px] text-gray-400 mt-0.5" x-text="calcTypeLabel(item.calculation_type)"></div>
+                        </td>
+                        <td class="px-3 py-2 text-right w-24">
+                          <span class="font-mono text-xs" x-text="fmt.yen(item.final_amount)"></span>
+                          <span x-show="item.manual_amount != null || item.manual_quantity != null || item.manual_unit_price != null" class="text-orange-400 ml-0.5 text-[10px]"><i class="fas fa-pen"></i></span>
+                        </td>
+                        <td class="px-3 py-2 w-44">
+                          <div class="flex items-center gap-1">
+                            <button @click="quickReview(item,'confirmed')" class="px-1.5 py-0.5 text-[10px] rounded transition" :class="item.review_status==='confirmed' ? 'bg-green-200 text-green-800 ring-1 ring-green-400' : 'bg-green-50 text-green-600 hover:bg-green-100'" title="OK"><i class="fas fa-check"></i></button>
+                            <button @click="quickReview(item,'needs_review')" class="px-1.5 py-0.5 text-[10px] rounded transition" :class="item.review_status==='needs_review' ? 'bg-yellow-200 text-yellow-800 ring-1 ring-yellow-400' : 'bg-yellow-50 text-yellow-600 hover:bg-yellow-100'" title="要修正"><i class="fas fa-pen"></i></button>
+                            <button @click="quickReview(item,'flagged')" class="px-1.5 py-0.5 text-[10px] rounded transition" :class="item.review_status==='flagged' ? 'bg-red-200 text-red-800 ring-1 ring-red-400' : 'bg-red-50 text-red-600 hover:bg-red-100'" title="ルール追加要"><i class="fas fa-flag"></i></button>
+                            <button @click="openBasisModal(item)" class="px-1.5 py-0.5 text-[10px] rounded bg-blue-50 text-blue-600 hover:bg-blue-100 transition ml-1" title="計算根拠"><i class="fas fa-calculator"></i></button>
+                          </div>
+                        </td>
+                        <td class="px-3 py-2 w-20 text-center">
+                          <span class="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
+                            :class="{'bg-green-100 text-green-700':item.review_status==='confirmed','bg-gray-100 text-gray-600':!item.review_status||item.review_status==='pending','bg-yellow-100 text-yellow-700':item.review_status==='needs_review','bg-red-100 text-red-700':item.review_status==='flagged'}"
+                            x-text="fmt.reviewStatus(item.review_status || 'pending')"></span>
+                        </td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+            </template>
+          </div>
+
+          <!-- Empty state -->
+          <div x-show="rs.stats.total === 0" class="bg-white rounded-xl border p-12 text-center">
+            <i class="fas fa-clipboard-check text-4xl text-gray-200 mb-3"></i>
+            <p class="text-lg font-medium text-gray-600 mb-2">レビュー対象がありません</p>
+            <p class="text-sm text-gray-400">初期計算を実行すると、工種別のレビューチェックシートが表示されます。</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 8: AI & Warnings (Production Hardened) -->
       <div x-show="activeTab === 'ai'" class="fade-in space-y-5">
         <div class="bg-gray-50 border-b border-gray-200 rounded-t-lg px-4 py-2.5 mb-1 flex items-center gap-2">
           <i class="fas fa-info-circle text-hm-500 text-xs"></i>
@@ -1230,7 +1387,8 @@ uiRoutes.get('/ui/projects/:id', (c) => {
         parseContent: '', parseFormat: 'text', parseResult: null,
         editModal: { show:false, item:null, saving:false, error:'',
           form: { manual_quantity:null, manual_unit_price:null, manual_amount:null, override_reason_category:'', override_reason:'', note:'', review_status:'', vendor_name:'' } },
-        basisModal: { show:false, item:null, rules:[] },
+        basisModal: { show:false, item:null, rules:[], reviewSaving:false },
+        reviewTab: { categoryFilter:'', sortBy:'status' },
         manualAdjust: { show:false, diff:null, amount:0 },
         salesForm: { estimate_type:'rough', total_sale_price:0, standard_sale:0, solar_sale:0 },
         tabs: [
@@ -1240,6 +1398,7 @@ uiRoutes.get('/ui/projects/:id', (c) => {
           { id:'sales', label:'売価・粗利', icon:'fas fa-yen-sign', badge:0, badgeColor:'' },
           { id:'risk', label:'リスクセンター', icon:'fas fa-shield-alt', badge:0, badgeColor:'bg-red-500 text-white' },
           { id:'diffs', label:'再計算差分', icon:'fas fa-code-compare', badge:0, badgeColor:'bg-orange-500 text-white' },
+          { id:'review', label:'レビューチェック', icon:'fas fa-clipboard-check', badge:0, badgeColor:'bg-teal-500 text-white' },
           { id:'ai', label:'警告・確認事項', icon:'fas fa-bell', badge:0, badgeColor:'bg-purple-500 text-white' },
         ],
         statusClass(s) { return {'draft':'bg-gray-100 text-gray-600','calculating':'bg-indigo-100 text-indigo-700','in_progress':'bg-blue-100 text-blue-700','needs_review':'bg-yellow-100 text-yellow-700','reviewed':'bg-green-100 text-green-700','archived':'bg-purple-100 text-purple-600'}[s] || 'bg-gray-100 text-gray-600'; },
@@ -1286,10 +1445,12 @@ uiRoutes.get('/ui/projects/:id', (c) => {
           if (res.success) { this.aiWarningsList = res.data || []; this.aiWarnings = res.summary || null; }
         },
         updateBadges() {
-          this.tabs[0].badge = this.risk?.summary?.action_required_count || 0;
-          this.tabs[2].badge = this.items.length;
-          this.tabs[3].badge = this.diffMeta?.pending || 0;
-          this.tabs[6].badge = (this.aiWarnings?.open || this.warnings.filter(w => w.status === 'open').length);
+          this.tabs[1].badge = this.items.length;
+          this.tabs[4].badge = this.risk?.summary?.action_required_count || 0;
+          this.tabs[5].badge = this.diffMeta?.pending || 0;
+          const pending = this.items.filter(i => !i.review_status || i.review_status === 'pending').length;
+          this.tabs[6].badge = pending;
+          this.tabs[7].badge = (this.aiWarnings?.open || this.warnings.filter(w => w.status === 'open').length);
         },
         onTabChange(tabId) {},
         editSaving: false, editError: '',
@@ -1331,8 +1492,97 @@ uiRoutes.get('/ui/projects/:id', (c) => {
             return {...g, items};
           }).filter(g => g.items.length > 0);
         },
+        buildFormula(item) {
+          if (!item) return null;
+          const ct = item.calculation_type;
+          const p = this.project;
+          if (!p) return null;
+          const tsubo = p.tsubo_count;
+          const buildArea = p.building_area_m2;
+          const totalFloor = p.total_floor_area_m2;
+          const roofArea = p.roof_area_m2;
+          const exteriorWall = p.exterior_wall_area_m2;
+          const qty = item.final_quantity;
+          const up = item.final_unit_price;
+          const amt = item.final_amount;
+          let formula = null, inputs = [];
+          if (ct === 'per_tsubo' && tsubo) {
+            formula = tsubo + '坪 × ' + this.fmt.yen(up) + '/坪 = ' + this.fmt.yen(amt);
+            inputs.push({label:'坪数', value:tsubo+'坪', source:'建物条件'});
+            inputs.push({label:'坪単価', value:this.fmt.yen(up), source:'単価マスタ'});
+          } else if (ct === 'per_m2' && qty) {
+            const areaLabel = (item.item_name||'').includes('屋根') ? '屋根面積' : (item.item_name||'').includes('外壁') ? '外壁面積' : (item.item_name||'').includes('基礎') ? '建築面積' : '面積';
+            formula = qty + 'm² × ' + this.fmt.yen(up) + '/m² = ' + this.fmt.yen(amt);
+            inputs.push({label:areaLabel, value:qty+'m²', source:'建物条件'});
+            inputs.push({label:'m²単価', value:this.fmt.yen(up), source:'単価マスタ'});
+          } else if (ct === 'per_meter' && qty) {
+            formula = qty + 'm × ' + this.fmt.yen(up) + '/m = ' + this.fmt.yen(amt);
+            inputs.push({label:'長さ', value:qty+'m', source:'建物条件/手入力'});
+            inputs.push({label:'m単価', value:this.fmt.yen(up), source:'単価マスタ'});
+          } else if (ct === 'per_piece' && qty) {
+            formula = qty + '個 × ' + this.fmt.yen(up) + '/個 = ' + this.fmt.yen(amt);
+            inputs.push({label:'数量', value:qty+'個', source:'建物条件/手入力'});
+            inputs.push({label:'個単価', value:this.fmt.yen(up), source:'単価マスタ'});
+          } else if (ct === 'fixed_amount') {
+            formula = this.fmt.yen(amt) + '（固定金額）';
+            inputs.push({label:'固定金額', value:this.fmt.yen(amt), source:'単価マスタ'});
+          } else if (ct === 'lineup_fixed') {
+            formula = this.fmt.yen(amt) + '（' + this.lineupName(p.lineup) + ' ラインナップ固定）';
+            inputs.push({label:'ラインナップ', value:this.lineupName(p.lineup), source:'建物条件'});
+            inputs.push({label:'固定金額', value:this.fmt.yen(amt), source:'単価マスタ'});
+          } else if (ct === 'range_lookup' || ct === 'rule_lookup') {
+            formula = (item.calculation_basis_note || (this.fmt.yen(amt) + '（ルール参照）'));
+            if (tsubo) inputs.push({label:'坪数', value:tsubo+'坪', source:'建物条件'});
+            if (p.lineup) inputs.push({label:'ラインナップ', value:this.lineupName(p.lineup), source:'建物条件'});
+            if (p.insulation_grade) inputs.push({label:'断熱等級', value:'等級'+p.insulation_grade, source:'建物条件'});
+          } else if (ct === 'threshold_surcharge') {
+            formula = (item.calculation_basis_note || this.fmt.yen(amt) + '（閾値加算）');
+          } else if (ct === 'manual_quote') {
+            formula = '手動見積が必要（業者見積もり等）';
+          }
+          return { formula, inputs };
+        },
+        async quickReview(item, status) {
+          this.basisModal.reviewSaving = true;
+          const res = await api.patch('/projects/'+projectId+'/cost-items/'+item.id, {review_status:status});
+          this.basisModal.reviewSaving = false;
+          if(res.success) { item.review_status = status; this.showToast(this.fmt.reviewStatus(status)+'に変更','success'); this.updateBadges(); }
+          else { this.showToast('エラー: '+(res.error||''),'error'); }
+        },
+        reviewStats() {
+          const stats = { total:this.items.length, confirmed:0, pending:0, needs_review:0, flagged:0, zero_amount:0 };
+          const byCat = {};
+          this.items.forEach(item => {
+            const s = item.review_status || 'pending';
+            stats[s] = (stats[s]||0) + 1;
+            if (item.final_amount === 0) stats.zero_amount++;
+            const catCode = item.category_code || 'other';
+            if (!byCat[catCode]) byCat[catCode] = { code:catCode, name:this.categoryName(catCode), total:0, confirmed:0, pending:0, needs_review:0, flagged:0, totalAmount:0, items:[] };
+            byCat[catCode].total++;
+            byCat[catCode][s] = (byCat[catCode][s]||0) + 1;
+            byCat[catCode].totalAmount += (item.final_amount||0);
+            byCat[catCode].items.push(item);
+          });
+          stats.progress = stats.total > 0 ? Math.round(stats.confirmed / stats.total * 100) : 0;
+          return { stats, categories: Object.values(byCat) };
+        },
+        reviewFilteredItems() {
+          let cats = this.reviewStats().categories;
+          if (this.reviewTab.categoryFilter) cats = cats.filter(c => c.code === this.reviewTab.categoryFilter);
+          return cats;
+        },
+        async batchReview(catItems, status) {
+          const pendingItems = catItems.filter(i => i.review_status !== status);
+          if (!pendingItems.length) return;
+          for (const item of pendingItems) {
+            await api.patch('/projects/'+projectId+'/cost-items/'+item.id, {review_status:status});
+            item.review_status = status;
+          }
+          this.showToast(pendingItems.length+'件を'+this.fmt.reviewStatus(status)+'に変更','success');
+          this.updateBadges();
+        },
         async openBasisModal(item) {
-          this.basisModal.item = item; this.basisModal.rules = []; this.basisModal.show = true;
+          this.basisModal.item = item; this.basisModal.rules = []; this.basisModal.reviewSaving = false; this.basisModal.show = true;
           if (item.master_item_id) {
             try {
               const rRes = await api.get('/master/rules?item_id=' + encodeURIComponent(item.master_item_id));
@@ -1389,7 +1639,9 @@ uiRoutes.get('/ui/login', (c) => {
       <h1 class="text-2xl font-bold text-gray-800">平松建築</h1>
       <p class="text-sm text-gray-500 mt-1">概算原価管理システム</p>
     </div>
-    <div class="space-y-4">
+
+    <!-- Login View -->
+    <div x-show="view === 'login'" class="space-y-4">
       <div><label class="block text-xs font-medium text-gray-500 mb-1">メールアドレス</label>
         <div class="relative"><i class="fas fa-envelope absolute left-3 top-3 text-gray-400 text-sm"></i>
           <input x-model="email" type="email" class="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-2.5 text-sm focus:ring-2 focus:ring-hm-500 focus:border-transparent" placeholder="user@hiramatsu.example.com" @keydown.enter="login()"></div></div>
@@ -1401,17 +1653,63 @@ uiRoutes.get('/ui/login', (c) => {
         <span x-show="loading"><i class="fas fa-spinner fa-spin mr-1"></i>認証中...</span>
       </button>
       <div x-show="error" class="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600"><i class="fas fa-exclamation-circle mr-1"></i><span x-text="error"></span></div>
+      <div class="text-center">
+        <button @click="view='reset-request'; error=''; success=''" class="text-xs text-hm-600 hover:underline"><i class="fas fa-key mr-1"></i>パスワードを忘れた方</button>
+      </div>
       <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-700">
         <i class="fas fa-info-circle mr-1"></i><strong>初回ログイン</strong>：管理者から通知されたメールアドレスで、任意のパスワード（4文字以上）を設定してください。そのパスワードが今後のログインに使われます。
       </div>
     </div>
+
+    <!-- Reset Request View -->
+    <div x-show="view === 'reset-request'" x-cloak class="space-y-4">
+      <h2 class="text-lg font-semibold text-gray-800 text-center"><i class="fas fa-key mr-2 text-hm-600"></i>パスワードリセット</h2>
+      <p class="text-xs text-gray-500 text-center">登録済みメールアドレスにリセットコード（6桁）を送信します。</p>
+      <div><label class="block text-xs font-medium text-gray-500 mb-1">メールアドレス</label>
+        <div class="relative"><i class="fas fa-envelope absolute left-3 top-3 text-gray-400 text-sm"></i>
+          <input x-model="email" type="email" class="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-2.5 text-sm focus:ring-2 focus:ring-hm-500 focus:border-transparent" placeholder="user@hiramatsu.example.com" @keydown.enter="requestReset()"></div></div>
+      <button @click="requestReset()" class="w-full bg-hm-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-hm-700 transition shadow-sm" :disabled="loading">
+        <span x-show="!loading"><i class="fas fa-paper-plane mr-1"></i>リセットコードを送信</span>
+        <span x-show="loading"><i class="fas fa-spinner fa-spin mr-1"></i>送信中...</span>
+      </button>
+      <div x-show="error" class="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600"><i class="fas fa-exclamation-circle mr-1"></i><span x-text="error"></span></div>
+      <div x-show="success" class="p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700"><i class="fas fa-check-circle mr-1"></i><span x-text="success"></span></div>
+      <div class="flex justify-between text-xs">
+        <button @click="view='login'; error=''; success=''" class="text-gray-500 hover:text-gray-700"><i class="fas fa-arrow-left mr-1"></i>ログインに戻る</button>
+        <button @click="view='reset-confirm'; error=''; success=''" class="text-hm-600 hover:underline">コードを持っている方</button>
+      </div>
+    </div>
+
+    <!-- Reset Confirm View -->
+    <div x-show="view === 'reset-confirm'" x-cloak class="space-y-4">
+      <h2 class="text-lg font-semibold text-gray-800 text-center"><i class="fas fa-lock-open mr-2 text-hm-600"></i>新しいパスワードを設定</h2>
+      <p class="text-xs text-gray-500 text-center">メールで届いた6桁のリセットコードと新しいパスワードを入力してください。</p>
+      <div><label class="block text-xs font-medium text-gray-500 mb-1">メールアドレス</label>
+        <input x-model="email" type="email" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-hm-500 focus:border-transparent"></div>
+      <div><label class="block text-xs font-medium text-gray-500 mb-1">リセットコード（6桁）</label>
+        <input x-model="resetToken" type="text" maxlength="6" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-center tracking-widest text-xl font-bold focus:ring-2 focus:ring-hm-500 focus:border-transparent" placeholder="000000"></div>
+      <div><label class="block text-xs font-medium text-gray-500 mb-1">新しいパスワード（4文字以上）</label>
+        <div class="relative"><i class="fas fa-lock absolute left-3 top-3 text-gray-400 text-sm"></i>
+          <input x-model="newPassword" type="password" class="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-2.5 text-sm focus:ring-2 focus:ring-hm-500 focus:border-transparent" placeholder="新しいパスワード" @keydown.enter="confirmReset()"></div></div>
+      <button @click="confirmReset()" class="w-full bg-hm-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-hm-700 transition shadow-sm" :disabled="loading">
+        <span x-show="!loading"><i class="fas fa-check mr-1"></i>パスワードを変更</span>
+        <span x-show="loading"><i class="fas fa-spinner fa-spin mr-1"></i>変更中...</span>
+      </button>
+      <div x-show="error" class="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600"><i class="fas fa-exclamation-circle mr-1"></i><span x-text="error"></span></div>
+      <div x-show="success" class="p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700"><i class="fas fa-check-circle mr-1"></i><span x-text="success"></span></div>
+      <div class="text-center">
+        <button @click="view='login'; error=''; success=''" class="text-xs text-gray-500 hover:text-gray-700"><i class="fas fa-arrow-left mr-1"></i>ログインに戻る</button>
+      </div>
+    </div>
+
     <div class="mt-6 pt-4 border-t text-center text-xs text-gray-400">v0.11.0 | <a href="/ui/manual" class="text-hm-600 hover:underline">使い方ガイド</a></div>
   </div>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <script>
   function loginForm() {
     return {
-      email: '', password: '', error: '', loading: false,
+      view: 'login', email: '', password: '', error: '', success: '', loading: false,
+      resetToken: '', newPassword: '',
       async checkAuth() {
         try { const r = await fetch('/api/auth/me'); const d = await r.json(); if (d.success) location.href = '/ui/projects'; } catch {}
       },
@@ -1422,6 +1720,28 @@ uiRoutes.get('/ui/login', (c) => {
           const r = await fetch('/api/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email:this.email,password:this.password}) });
           const d = await r.json();
           if (d.success) { location.href = '/ui/projects'; } else { this.error = d.error || 'ログインに失敗しました'; }
+        } catch(e) { this.error = '通信エラーが発生しました'; }
+        this.loading = false;
+      },
+      async requestReset() {
+        if (!this.email) { this.error = 'メールアドレスを入力してください'; return; }
+        this.loading = true; this.error = ''; this.success = '';
+        try {
+          const r = await fetch('/api/auth/reset-request', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email:this.email}) });
+          const d = await r.json();
+          if (d.success) { this.success = d.message; setTimeout(() => { this.view = 'reset-confirm'; this.success = ''; }, 2000); }
+          else { this.error = d.error || 'エラーが発生しました'; }
+        } catch(e) { this.error = '通信エラーが発生しました'; }
+        this.loading = false;
+      },
+      async confirmReset() {
+        if (!this.email || !this.resetToken || !this.newPassword) { this.error = '全項目を入力してください'; return; }
+        this.loading = true; this.error = ''; this.success = '';
+        try {
+          const r = await fetch('/api/auth/reset-confirm', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email:this.email,token:this.resetToken,new_password:this.newPassword}) });
+          const d = await r.json();
+          if (d.success) { this.success = d.message; setTimeout(() => { this.view = 'login'; this.password = this.newPassword; this.success = ''; this.resetToken = ''; this.newPassword = ''; }, 3000); }
+          else { this.error = d.error || 'エラーが発生しました'; }
         } catch(e) { this.error = '通信エラーが発生しました'; }
         this.loading = false;
       }
