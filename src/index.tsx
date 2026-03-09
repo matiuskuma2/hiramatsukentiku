@@ -39,7 +39,7 @@ app.get('/api/health', (c) => {
   return c.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    version: '0.11.0',
+    version: '0.12.0',
     phase: 'p2-ux-improvement-deployed',
   });
 });
